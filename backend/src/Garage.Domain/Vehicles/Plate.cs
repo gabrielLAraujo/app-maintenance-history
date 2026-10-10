@@ -8,12 +8,12 @@ public sealed partial record Plate
 
     public string Value { get; }
 
-    public static string Normalize(string raw) =>
-        raw.Replace("-", string.Empty).Replace(" ", string.Empty).ToUpperInvariant();
+    public static string Normalize(string? raw) =>
+        raw is null ? string.Empty : raw.Replace("-", string.Empty).Replace(" ", string.Empty).ToUpperInvariant();
 
-    public static bool IsValid(string raw) => PlatePattern().IsMatch(Normalize(raw));
+    public static bool IsValid(string? raw) => PlatePattern().IsMatch(Normalize(raw));
 
-    public static Plate From(string raw)
+    public static Plate From(string? raw)
     {
         if (!IsValid(raw))
             throw new ArgumentException("Placa inválida.", nameof(raw));

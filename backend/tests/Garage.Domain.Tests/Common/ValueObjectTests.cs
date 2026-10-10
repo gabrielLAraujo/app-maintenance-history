@@ -21,7 +21,16 @@ public class ValueObjectTests
     public void Plate_rejects_invalid(string raw) => Assert.False(Plate.IsValid(raw));
 
     [Fact]
+    public void Plate_IsValid_is_false_for_null() => Assert.False(Plate.IsValid(null));
+
+    [Fact]
+    public void Plate_Normalize_of_null_is_empty() => Assert.Equal(string.Empty, Plate.Normalize(null));
+
+    [Fact]
     public void Plate_From_throws_for_invalid_input() => Assert.Throws<ArgumentException>(() => Plate.From("AB12345"));
+
+    [Fact]
+    public void Plate_From_throws_ArgumentException_for_null() => Assert.Throws<ArgumentException>(() => Plate.From(null));
 
     [Fact]
     public void Plates_with_the_same_normalized_value_are_equal() => Assert.Equal(Plate.From("abc-1234"), Plate.From("ABC 1234"));
