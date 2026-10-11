@@ -1,6 +1,8 @@
 using Garage.Application.Abstractions.Ports;
+using Garage.Infrastructure.Access;
 using Garage.Infrastructure.Identity;
 using Garage.Infrastructure.Persistence;
+using Garage.Infrastructure.Persistence.Repositories;
 using Garage.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -20,6 +22,8 @@ public static class DependencyInjection
             .UseSnakeCaseNamingConvention());
         services.AddScoped<IReadDbContext>(sp => sp.GetRequiredService<GarageDbContext>());
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IVehicleRepository, VehicleRepository>();
+        services.AddScoped<IVehicleAccess, VehicleAccess>();
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();

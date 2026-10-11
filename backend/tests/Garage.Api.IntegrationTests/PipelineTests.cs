@@ -32,7 +32,9 @@ public sealed class PipelineTests : IDisposable
         services.AddScoped<IValidator<FindPart>, FindPartValidator>();
         services.AddApplication();
 
-        _provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        // Sem ValidateOnBuild: o AddApplication também registra os handlers reais, cujas portas (repositórios, relógio...)
+        // vêm da Infrastructure. O grafo completo é validado ao subir a API (GarageApiFactory).
+        _provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
         _scope = _provider.CreateScope();
     }
 
