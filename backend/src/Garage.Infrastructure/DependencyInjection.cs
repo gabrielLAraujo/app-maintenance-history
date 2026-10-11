@@ -3,6 +3,7 @@ using Garage.Infrastructure.Access;
 using Garage.Infrastructure.Identity;
 using Garage.Infrastructure.Persistence;
 using Garage.Infrastructure.Persistence.Repositories;
+using Garage.Infrastructure.Storage;
 using Garage.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -25,7 +26,12 @@ public static class DependencyInjection
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IReminderRepository, ReminderRepository>();
         services.AddScoped<IServiceRecordRepository, ServiceRecordRepository>();
+        services.AddScoped<IAttachmentRepository, AttachmentRepository>();
         services.AddScoped<IVehicleAccess, VehicleAccess>();
+
+        services.AddOptions<StorageOptions>().Bind(config.GetSection(StorageOptions.SectionName));
+        services.AddSingleton<IFileStorage, LocalDiskFileStorage>();
+        services.AddSingleton<IImageProcessor, MagickImageProcessor>();
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();

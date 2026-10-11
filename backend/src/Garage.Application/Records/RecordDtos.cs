@@ -1,3 +1,4 @@
+using Garage.Application.Attachments;
 using Garage.Domain.Records;
 
 namespace Garage.Application.Records;
@@ -29,7 +30,8 @@ public sealed record RecordListItemDto(
     int? Odometer,
     string Title,
     Category Category,
-    decimal TotalCost);
+    decimal TotalCost,
+    int AttachmentCount);
 
 public sealed record PartDto(
     string Name,
@@ -53,4 +55,5 @@ public sealed record RecordDto(
     string? ReplacedOriginalPart,
     IReadOnlyList<PartDto> Parts,
     decimal TotalCost,
+    IReadOnlyList<AttachmentDto> Attachments,
     uint RowVersion);

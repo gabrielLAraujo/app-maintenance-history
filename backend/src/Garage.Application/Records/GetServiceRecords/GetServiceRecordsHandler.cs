@@ -1,6 +1,7 @@
 using Garage.Application.Abstractions;
 using Garage.Application.Abstractions.Messaging;
 using Garage.Application.Abstractions.Ports;
+using Garage.Domain.Attachments;
 using Garage.Domain.Common;
 using Garage.Domain.Records;
 using Garage.Domain.Vehicles;
@@ -34,6 +35,7 @@ internal sealed class GetServiceRecordsHandler(
         }
 
         // Um item além da página indica que há próxima. O total não é coluna: é calculado em memória a partir das peças.
+        var attachments = db.Query<Attachment>();
         var rows = await records
             .OrderByDescending(r => r.Date)
             .ThenByDescending(r => r.CreatedAt)
@@ -52,7 +54,8 @@ internal sealed class GetServiceRecordsHandler(
                 Parts = r.Parts
                     .OrderBy(p => EF.Property<int>(p, "Position"))
                     .Select(p => new { p.Quantity, p.UnitPrice })
-                    .ToList()
+                    .ToList(),
+                AttachmentCount = attachments.Count(a => a.RecordId == r.Id)
             })
             .ToListAsync(ct);
 
@@ -73,7 +76,8 @@ internal sealed class GetServiceRecordsHandler(
                 RecordMapping.TotalCost(
                         row.LaborCost,
                         row.Parts.Select(part => RecordMapping.LineTotal(part.Quantity, part.UnitPrice)))
-                    .Amount))
+                    .Amount,
+                row.AttachmentCount))
             .ToList();
         return new PagedResult<RecordListItemDto>(items, nextCursor);
     }

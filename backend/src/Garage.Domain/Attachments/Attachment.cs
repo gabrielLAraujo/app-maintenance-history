@@ -7,8 +7,11 @@ public sealed class Attachment : AggregateRoot
     /// <summary>A1: tamanho máximo de um arquivo (10 MB).</summary>
     public const long MaxSizeBytes = 10 * 1024 * 1024;
 
-    /// <summary>A2: quantidade máxima de anexos por registro.</summary>
+    /// <summary>A3: quantidade máxima de anexos por registro.</summary>
     public const int MaxPerRecord = 20;
+
+    /// <summary>Tamanho máximo do nome original guardado para exibição (spec 4.6).</summary>
+    public const int MaxFileNameLength = 200;
 
     // Construtor sem parâmetros apenas para a materialização do EF Core; os inicializadores
     // `null!` satisfazem a análise de nulos e são sempre sobrescritos na materialização.
@@ -32,12 +35,16 @@ public sealed class Attachment : AggregateRoot
 
     public DateTimeOffset UploadedAt { get; private set; }
 
-    /// <summary>Chave do arquivo no armazenamento: <c>{VehicleId}/{Id}</c> (calculada, não persistida).</summary>
-    public string StorageKey => $"{VehicleId}/{Id}";
+    /// <summary>
+    /// Chave do arquivo no armazenamento: <c>{VehicleId}/{Id}</c>, gerada pelo sistema na criação (nunca vem do nome
+    /// enviado). É persistida para que a limpeza dos arquivos de um registro ou veículo a leia direto do banco.
+    /// </summary>
+    public string StorageKey { get; private set; } = null!;
 
     /// <summary>
-    /// A3: PDF é sempre <see cref="AttachmentKind.Document"/>; nos demais formatos vale o tipo pedido.
-    /// Só foto nasce pública. A1 (tamanho) e A2 (limite por registro) são checadas pelo handler antes de criar.
+    /// PDF é sempre <see cref="AttachmentKind.Document"/>; nos demais formatos vale o tipo pedido. Só foto nasce pública
+    /// (A4). O handler checa antes de criar: A1 (tamanho), A2 (tipo pelos primeiros bytes, via <see cref="FileSignature"/>)
+    /// e A3 (limite por registro).
     /// </summary>
     public static Attachment Create(
         Guid vehicleId,
@@ -49,11 +56,12 @@ public sealed class Attachment : AggregateRoot
         long sizeBytes,
         DateTimeOffset now)
     {
+        var id = Guid.CreateVersion7();
         var kind = type == DetectedFileType.Pdf ? AttachmentKind.Document : requestedKind;
 
         return new Attachment
         {
-            Id = Guid.CreateVersion7(),
+            Id = id,
             VehicleId = vehicleId,
             RecordId = recordId,
             Kind = kind,
@@ -61,14 +69,18 @@ public sealed class Attachment : AggregateRoot
             FileName = fileName,
             ContentType = contentType,
             SizeBytes = sizeBytes,
-            UploadedAt = now
+            UploadedAt = now,
+            StorageKey = $"{vehicleId}/{id}"
         };
     }
 
-    /// <summary>A4: documento nunca fica visível no link público; em caso de falha, o estado não muda.</summary>
+    /// <summary>
+    /// A4: só foto pode ficar visível no link público (documento — ou qualquer outro tipo — nunca); em caso de falha,
+    /// o estado não muda.
+    /// </summary>
     public Result SetVisibility(bool isPublic)
     {
-        if (isPublic && Kind == AttachmentKind.Document)
+        if (isPublic && Kind != AttachmentKind.Photo)
             return AttachmentErrors.DocumentCannotBePublic;
 
         IsPublic = isPublic;

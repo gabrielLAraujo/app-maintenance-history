@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -183,5 +184,44 @@ public static class TestData
             $"List records failed: {(int)response.StatusCode} {content}");
 
         return JsonSerializer.Deserialize<JsonElement>(content, TestJson.Options);
+    }
+
+    /// <summary>
+    /// <c>POST</c> multipart de um anexo: <c>file</c> (com o <paramref name="contentType"/> declarado pelo cliente, que o
+    /// servidor ignora) e <c>kind</c>. <paramref name="kind"/> ou <paramref name="content"/> nulos omitem o campo.
+    /// </summary>
+    public static async Task<HttpResponseMessage> PostAttachmentAsync(
+        this HttpClient client,
+        Guid vehicleId,
+        Guid recordId,
+        byte[]? content,
+        string fileName,
+        string? kind = "photo",
+        string contentType = "application/octet-stream")
+    {
+        using var form = new MultipartFormDataContent();
+        if (content is not null)
+        {
+            var file = new ByteArrayContent(content);
+            file.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+            form.Add(file, "file", fileName);
+        }
+
+        if (kind is not null)
+            form.Add(new StringContent(kind), "kind");
+
+        return await client.PostAsync($"/api/vehicles/{vehicleId}/records/{recordId}/attachments", form);
+    }
+
+    /// <summary>Envia um anexo (deve dar 201) e devolve o <c>AttachmentDto</c>.</summary>
+    public static async Task<JsonElement> UploadAttachmentAsync(
+        this HttpClient client, Guid vehicleId, Guid recordId, byte[] content, string fileName, string kind = "photo")
+    {
+        using var response = await client.PostAttachmentAsync(vehicleId, recordId, content, fileName, kind);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created,
+            $"Upload attachment failed: {(int)response.StatusCode} {body}");
+
+        return JsonSerializer.Deserialize<JsonElement>(body, TestJson.Options);
     }
 }

@@ -110,7 +110,22 @@ public class AttachmentTests
     }
 
     [Fact]
-    public void StorageKey_is_vehicle_slash_id()
+    public void Unknown_kind_is_private_and_cannot_be_made_public()
+    {
+        // Só foto pode ser pública: um tipo fora do enum (não deveria chegar aqui) nunca vaza no link público.
+        var attachment = Create((AttachmentKind)99, DetectedFileType.Jpeg);
+
+        Assert.False(attachment.IsPublic);
+
+        var result = attachment.SetVisibility(true);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("attachment.document_cannot_be_public", result.Error!.Code);
+        Assert.False(attachment.IsPublic);
+    }
+
+    [Fact]
+    public void StorageKey_is_assigned_at_creation_as_vehicle_slash_id()
     {
         var attachment = Create();
 
