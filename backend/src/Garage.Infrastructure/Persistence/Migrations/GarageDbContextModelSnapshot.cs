@@ -207,6 +207,60 @@ namespace Garage.Infrastructure.Persistence.Migrations
                     b.ToTable("reminders", (string)null);
                 });
 
+            modelBuilder.Entity("Garage.Domain.Sharing.ShareLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<bool>("IncludeCosts")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_costs");
+
+                    b.Property<bool>("IncludePlate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_plate");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("label");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(43)
+                        .HasColumnType("character varying(43)")
+                        .HasColumnName("token");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vehicle_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_share_links");
+
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasDatabaseName("ix_share_links_token");
+
+                    b.HasIndex("VehicleId")
+                        .HasDatabaseName("ix_share_links_vehicle_id");
+
+                    b.ToTable("share_links", (string)null);
+                });
+
             modelBuilder.Entity("Garage.Domain.Vehicles.Vehicle", b =>
                 {
                     b.Property<Guid>("Id")
@@ -644,6 +698,16 @@ namespace Garage.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_reminders_vehicles_vehicle_id");
+                });
+
+            modelBuilder.Entity("Garage.Domain.Sharing.ShareLink", b =>
+                {
+                    b.HasOne("Garage.Domain.Vehicles.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_share_links_vehicles_vehicle_id");
                 });
 
             modelBuilder.Entity("Garage.Domain.Vehicles.Vehicle", b =>

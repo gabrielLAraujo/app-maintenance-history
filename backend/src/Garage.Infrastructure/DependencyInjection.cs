@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<IReminderRepository, ReminderRepository>();
         services.AddScoped<IServiceRecordRepository, ServiceRecordRepository>();
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+        services.AddScoped<IShareLinkRepository, ShareLinkRepository>();
         services.AddScoped<IVehicleAccess, VehicleAccess>();
 
         services.AddOptions<StorageOptions>().Bind(config.GetSection(StorageOptions.SectionName));

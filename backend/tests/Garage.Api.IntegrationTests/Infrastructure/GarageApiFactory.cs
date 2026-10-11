@@ -22,6 +22,17 @@ public sealed class GarageApiFactory : WebApplicationFactory<Program>, IAsyncLif
     public string StoragePath { get; } =
         Path.Combine(Path.GetTempPath(), "garage-tests", Guid.NewGuid().ToString("N"));
 
+    /// <summary>
+    /// Fábrica derivada com relógio próprio, para os testes que avançam o tempo: o <see cref="Clock"/> é compartilhado com
+    /// os outros testes e não volta no tempo. Usa o mesmo banco e o mesmo armazenamento.
+    /// </summary>
+    public WebApplicationFactory<Program> WithClock(FakeTimeProvider clock) =>
+        WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(clock);
+        }));
+
     public async Task InitializeAsync()
     {
         Directory.CreateDirectory(StoragePath);

@@ -187,6 +187,31 @@ public static class TestData
     }
 
     /// <summary>
+    /// Cria um link público do veículo (deve dar 201) e devolve o <c>ShareLinkDto</c>. Sem <paramref name="body"/>, envia
+    /// <c>{}</c>: sem rótulo, sem custos, sem placa e sem validade.
+    /// </summary>
+    public static async Task<JsonElement> CreateShareLinkAsync(this HttpClient client, Guid vehicleId, object? body = null)
+    {
+        using var response = await client.PostAsJsonAsync($"/api/vehicles/{vehicleId}/share-links", body ?? new { }, TestJson.Options);
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created,
+            $"Create share link failed: {(int)response.StatusCode} {content}");
+
+        return JsonSerializer.Deserialize<JsonElement>(content, TestJson.Options);
+    }
+
+    /// <summary>Os links públicos do veículo, como array JSON.</summary>
+    public static async Task<JsonElement> GetShareLinksAsync(this HttpClient client, Guid vehicleId)
+    {
+        using var response = await client.GetAsync($"/api/vehicles/{vehicleId}/share-links");
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK,
+            $"List share links failed: {(int)response.StatusCode} {content}");
+
+        return JsonSerializer.Deserialize<JsonElement>(content, TestJson.Options);
+    }
+
+    /// <summary>
     /// <c>POST</c> multipart de um anexo: <c>file</c> (com o <paramref name="contentType"/> declarado pelo cliente, que o
     /// servidor ignora) e <c>kind</c>. <paramref name="kind"/> ou <paramref name="content"/> nulos omitem o campo.
     /// </summary>

@@ -4,6 +4,9 @@ namespace Garage.Domain.Sharing;
 
 public sealed class ShareLink : AggregateRoot
 {
+    /// <summary>Tamanho máximo do rótulo opcional (ex.: "Comprador"), spec 4.7.</summary>
+    public const int MaxLabelLength = 60;
+
     // Construtor sem parâmetros apenas para a materialização do EF Core; os inicializadores
     // `null!` satisfazem a análise de nulos e são sempre sobrescritos na materialização.
     private ShareLink()
