@@ -25,7 +25,13 @@ public sealed class Part : Entity
     /// <summary>Preço unitário × quantidade; zero quando a peça não tem preço informado.</summary>
     public Money LineTotal => UnitPrice?.Times(Quantity) ?? Money.Zero;
 
-    internal static Part From(PartData data) => new()
+    /// <summary>
+    /// Posição (0, 1, 2…) na lista informada pelo usuário, que tem sentido para ele. Interna: só a persistência a usa,
+    /// para devolver as peças na mesma ordem (os ids v7 criados no mesmo milissegundo não preservam a ordem).
+    /// </summary>
+    internal int Position { get; private set; }
+
+    internal static Part From(PartData data, int position) => new()
     {
         Id = Guid.CreateVersion7(),
         Name = data.Name,
@@ -33,6 +39,7 @@ public sealed class Part : Entity
         PartNumber = data.PartNumber,
         Quantity = data.Quantity,
         Unit = data.Unit,
-        UnitPrice = data.UnitPrice
+        UnitPrice = data.UnitPrice,
+        Position = position
     };
 }

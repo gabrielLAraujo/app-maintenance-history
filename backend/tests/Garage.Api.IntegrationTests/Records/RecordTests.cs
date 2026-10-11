@@ -83,6 +83,30 @@ public sealed class RecordTests(GarageApiFactory factory)
     }
 
     [Fact]
+    public async Task Parts_come_back_in_the_order_they_were_entered_also_after_reordering()
+    {
+        factory.Clock.SetUtcNow(Now);
+        using var client = await factory.CreateUserClientAsync();
+        var vehicleId = await client.CreateVehicleAsync();
+        // Ordem que não é a alfabética nem a de criação dos ids (v7 no mesmo milissegundo têm ordem aleatória).
+        string[] entered = ["Óleo 5W30", "Filtro de óleo", "Arruela do cárter"];
+        var id = await client.CreateRecordAsync(
+            vehicleId, TestData.Record(parts: entered.Select(name => (object)TestData.Part(name)).ToArray()));
+
+        Assert.Equal(entered, PartNames(await client.GetRecordAsync(vehicleId, id)));
+
+        string[] reordered = ["Arruela do cárter", "Óleo 5W30", "Filtro de óleo"];
+        var rowVersion = RowVersion(await client.GetRecordAsync(vehicleId, id));
+        using var updated = await client.PutAsJsonAsync(
+            $"{RecordsUrl(vehicleId)}/{id}",
+            TestData.Record(parts: reordered.Select(name => (object)TestData.Part(name)).ToArray()).With("rowVersion", rowVersion),
+            TestJson.Options);
+
+        Assert.Equal(HttpStatusCode.NoContent, updated.StatusCode);
+        Assert.Equal(reordered, PartNames(await client.GetRecordAsync(vehicleId, id)));
+    }
+
+    [Fact]
     public async Task Add_record_with_higher_km_updates_vehicle_odometer()
     {
         factory.Clock.SetUtcNow(Now);
@@ -856,6 +880,9 @@ public sealed class RecordTests(GarageApiFactory factory)
     private static List<JsonElement> Items(JsonElement page) => page.GetProperty("items").EnumerateArray().ToList();
 
     private static uint RowVersion(JsonElement element) => element.GetProperty("rowVersion").GetUInt32();
+
+    private static string?[] PartNames(JsonElement record) =>
+        record.GetProperty("parts").EnumerateArray().Select(part => part.GetProperty("name").GetString()).ToArray();
 
     private static async Task<int> CurrentOdometerAsync(HttpClient client, Guid vehicleId) =>
         (await client.GetVehicleAsync(vehicleId)).GetProperty("currentOdometer").GetInt32();

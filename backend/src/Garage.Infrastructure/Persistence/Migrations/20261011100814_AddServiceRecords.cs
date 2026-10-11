@@ -51,6 +51,7 @@ namespace Garage.Infrastructure.Persistence.Migrations
                     quantity = table.Column<decimal>(type: "numeric(8,3)", nullable: false),
                     unit = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     unit_price = table.Column<decimal>(type: "numeric(12,2)", nullable: true),
+                    position = table.Column<int>(type: "integer", nullable: false),
                     service_record_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>

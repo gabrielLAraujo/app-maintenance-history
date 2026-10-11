@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Garage.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GarageDbContext))]
-    [Migration("20261011095232_AddServiceRecords")]
+    [Migration("20261011100814_AddServiceRecords")]
     partial class AddServiceRecords
     {
         /// <inheritdoc />
@@ -521,6 +521,10 @@ namespace Garage.Infrastructure.Persistence.Migrations
                                 .HasMaxLength(60)
                                 .HasColumnType("character varying(60)")
                                 .HasColumnName("part_number");
+
+                            b1.Property<int>("Position")
+                                .HasColumnType("integer")
+                                .HasColumnName("position");
 
                             b1.Property<decimal>("Quantity")
                                 .HasColumnType("numeric(8,3)")

@@ -52,6 +52,10 @@ internal sealed class ServiceRecordConfiguration : IEntityTypeConfiguration<Serv
             parts.Property(p => p.Quantity).HasColumnType("numeric(8,3)");
             parts.Property(p => p.Unit).HasConversion<string>().HasMaxLength(20);
             parts.Property(p => p.UnitPrice).HasConversion(MoneyConverter).HasColumnType(MoneyColumnType);
+
+            // Ordem informada pelo usuário: Part.Position é interna ao domínio, então é mapeada pelo nome. As leituras
+            // ordenam por ela (EF.Property<int>(p, "Position")).
+            parts.Property<int>("Position");
         });
 
         // Concorrência otimista: o Npgsql mapeia a propriedade sombra para a coluna de sistema xmin.

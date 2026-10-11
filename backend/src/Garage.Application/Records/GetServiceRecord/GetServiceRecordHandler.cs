@@ -31,8 +31,9 @@ internal sealed class GetServiceRecordHandler(
                 r.PerformedBy,
                 r.LaborCost,
                 r.ReplacedOriginalPart,
+                // Na ordem em que o usuário informou as peças (Part.Position, interna ao domínio).
                 Parts = r.Parts
-                    .OrderBy(p => p.Id)
+                    .OrderBy(p => EF.Property<int>(p, "Position"))
                     .Select(p => new { p.Name, p.Brand, p.PartNumber, p.Quantity, p.Unit, p.UnitPrice })
                     .ToList(),
                 RowVersion = EF.Property<uint>(r, "RowVersion")

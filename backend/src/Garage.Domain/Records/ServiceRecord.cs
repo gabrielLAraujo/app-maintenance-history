@@ -101,7 +101,7 @@ public sealed class ServiceRecord : AggregateRoot
 
     private void Apply(RecordDetails details)
     {
-        var parts = details.Parts.Select(Part.From).ToList();
+        var parts = details.Parts.Select((data, index) => Part.From(data, index)).ToList();
 
         Type = details.Type;
         Date = details.Date;

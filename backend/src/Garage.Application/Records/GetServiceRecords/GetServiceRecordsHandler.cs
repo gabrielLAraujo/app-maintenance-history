@@ -49,7 +49,10 @@ internal sealed class GetServiceRecordsHandler(
                 r.Category,
                 r.CreatedAt,
                 r.LaborCost,
-                Parts = r.Parts.Select(p => new { p.Quantity, p.UnitPrice }).ToList()
+                Parts = r.Parts
+                    .OrderBy(p => EF.Property<int>(p, "Position"))
+                    .Select(p => new { p.Quantity, p.UnitPrice })
+                    .ToList()
             })
             .ToListAsync(ct);
 

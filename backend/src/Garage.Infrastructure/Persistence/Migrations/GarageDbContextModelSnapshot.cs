@@ -519,6 +519,10 @@ namespace Garage.Infrastructure.Persistence.Migrations
                                 .HasColumnType("character varying(60)")
                                 .HasColumnName("part_number");
 
+                            b1.Property<int>("Position")
+                                .HasColumnType("integer")
+                                .HasColumnName("position");
+
                             b1.Property<decimal>("Quantity")
                                 .HasColumnType("numeric(8,3)")
                                 .HasColumnName("quantity");
