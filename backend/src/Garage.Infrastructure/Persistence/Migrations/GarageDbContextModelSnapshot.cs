@@ -23,6 +23,53 @@ namespace Garage.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Garage.Domain.Reminders.Reminder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("IntervalKm")
+                        .HasColumnType("integer")
+                        .HasColumnName("interval_km");
+
+                    b.Property<int?>("IntervalMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("interval_months");
+
+                    b.Property<DateOnly>("LastDoneDate")
+                        .HasColumnType("date")
+                        .HasColumnName("last_done_date");
+
+                    b.Property<int?>("LastDoneOdometer")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_done_odometer");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("title");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vehicle_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_reminders");
+
+                    b.HasIndex("VehicleId")
+                        .HasDatabaseName("ix_reminders_vehicle_id");
+
+                    b.ToTable("reminders", (string)null);
+                });
+
             modelBuilder.Entity("Garage.Domain.Vehicles.Vehicle", b =>
                 {
                     b.Property<Guid>("Id")
@@ -364,6 +411,16 @@ namespace Garage.Infrastructure.Persistence.Migrations
                         .HasName("pk_asp_net_user_tokens");
 
                     b.ToTable("asp_net_user_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("Garage.Domain.Reminders.Reminder", b =>
+                {
+                    b.HasOne("Garage.Domain.Vehicles.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_reminders_vehicles_vehicle_id");
                 });
 
             modelBuilder.Entity("Garage.Domain.Vehicles.Vehicle", b =>

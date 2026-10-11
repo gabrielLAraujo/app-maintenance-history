@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IReadDbContext>(sp => sp.GetRequiredService<GarageDbContext>());
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
+        services.AddScoped<IReminderRepository, ReminderRepository>();
         services.AddScoped<IVehicleAccess, VehicleAccess>();
 
         services.AddHttpContextAccessor();
