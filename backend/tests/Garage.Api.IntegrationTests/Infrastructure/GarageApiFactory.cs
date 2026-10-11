@@ -59,6 +59,8 @@ public sealed class GarageApiFactory : WebApplicationFactory<Program>, IAsyncLif
         {
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
+            // O TestServer não limita o corpo da requisição; o Kestrel, sim (inclusive o RequestSizeLimit dos endpoints).
+            services.AddSingleton<IStartupFilter, KestrelRequestBodyLimit>();
         });
     }
 }

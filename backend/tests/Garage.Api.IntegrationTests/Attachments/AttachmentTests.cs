@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -216,6 +217,30 @@ public sealed class AttachmentTests(GarageApiFactory factory)
         AssertNoFilesStored(vehicleId);
     }
 
+    [Theory]
+    [InlineData(12, true)]
+    [InlineData(25, true)]
+    [InlineData(12, false)]
+    public async Task Upload_far_over_10mb_returns_413_too_large_and_stores_nothing(int megabytes, bool withContentLength)
+    {
+        using var client = await UserAsync();
+        var (vehicleId, recordId) = await VehicleWithRecordAsync(client);
+        // O caso comum (foto de câmera, PDF escaneado): bem acima do teto da requisição (10 MB do arquivo + 1 MB de folga).
+        // Sem Content-Length (envio em partes), o teto só aparece durante a leitura do corpo.
+        var content = new byte[megabytes * 1024 * 1024];
+        content[0] = 0xFF;
+        content[1] = 0xD8;
+        content[2] = 0xFF;
+
+        using var response = withContentLength
+            ? await client.PostAttachmentAsync(vehicleId, recordId, content, "enorme.jpg")
+            : await PostWithoutContentLengthAsync(client, vehicleId, recordId, content, "enorme.jpg");
+
+        await response.AssertProblemAsync(HttpStatusCode.RequestEntityTooLarge, "attachment.too_large");
+        Assert.Equal(0, (await client.GetRecordAsync(vehicleId, recordId)).GetProperty("attachments").GetArrayLength());
+        AssertNoFilesStored(vehicleId);
+    }
+
     [Fact]
     public async Task Twenty_first_attachment_returns_422()
     {
@@ -261,6 +286,32 @@ public sealed class AttachmentTests(GarageApiFactory factory)
         var document = await client.UploadAttachmentAsync(vehicleId, recordId, photo, "nota.png", kind: "Document");
         Assert.Equal("document", document.GetProperty("kind").GetString());
         Assert.Single(StoredFiles(vehicleId));
+    }
+
+    [Fact]
+    public async Task Upload_without_a_readable_multipart_form_is_rejected_and_stores_nothing()
+    {
+        using var client = await UserAsync();
+        var (vehicleId, recordId) = await VehicleWithRecordAsync(client);
+        var url = $"/api/vehicles/{vehicleId}/records/{recordId}/attachments";
+
+        // Outro Content-Type: o roteamento (Accepts multipart/form-data) recusa antes do endpoint.
+        using var json = await client.PostAsJsonAsync(url, new { kind = "photo" }, TestJson.Options);
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, json.StatusCode);
+
+        // Sem corpo: faltam o arquivo e o tipo.
+        using var empty = await client.PostAsync(url, content: null);
+        var emptyErrors = (await empty.AssertProblemAsync(HttpStatusCode.BadRequest, "validation.failed")).GetProperty("errors");
+        Assert.Equal(new[] { "file", "kind" }, FieldNames(emptyErrors));
+
+        // Multipart malformado (o limite declarado nunca aparece no corpo): o arquivo não pôde ser lido.
+        using var malformed = new StringContent("isto nao e um multipart", Encoding.UTF8);
+        malformed.Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data; boundary=fronteira");
+        using var broken = await client.PostAsync(url, malformed);
+        var brokenErrors = (await broken.AssertProblemAsync(HttpStatusCode.BadRequest, "validation.failed")).GetProperty("errors");
+        Assert.Equal(new[] { "file" }, FieldNames(brokenErrors));
+
+        AssertNoFilesStored(vehicleId);
     }
 
     [Fact]
@@ -545,9 +596,33 @@ public sealed class AttachmentTests(GarageApiFactory factory)
             $"Esperava a pasta {folder} vazia ou inexistente.");
     }
 
+    private static async Task<HttpResponseMessage> PostWithoutContentLengthAsync(
+        HttpClient client, Guid vehicleId, Guid recordId, byte[] content, string fileName)
+    {
+        using var form = new MultipartFormDataContent();
+        form.Add(new UnknownLengthContent(content), "file", fileName);
+        form.Add(new StringContent("photo"), "kind");
+        Assert.Null(form.Headers.ContentLength); // o corpo vai em partes (chunked)
+
+        return await client.PostAsync($"/api/vehicles/{vehicleId}/records/{recordId}/attachments", form);
+    }
+
     private static bool ContainsAscii(byte[] content, string text) =>
         content.AsSpan().IndexOf(Encoding.ASCII.GetBytes(text)) >= 0;
 
     private static string[] FieldNames(JsonElement errors) =>
         errors.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal).ToArray();
+
+    /// <summary>Conteúdo sem tamanho conhecido: o cliente não envia Content-Length.</summary>
+    private sealed class UnknownLengthContent(byte[] content) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            stream.WriteAsync(content).AsTask();
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
 }
