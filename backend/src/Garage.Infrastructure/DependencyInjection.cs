@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IReminderRepository, ReminderRepository>();
+        services.AddScoped<IServiceRecordRepository, ServiceRecordRepository>();
         services.AddScoped<IVehicleAccess, VehicleAccess>();
 
         services.AddHttpContextAccessor();

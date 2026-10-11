@@ -50,6 +50,51 @@ public static class TestData
         ["lastDoneOdometer"] = lastDoneOdometer
     };
 
+    /// <summary>
+    /// Corpo de <c>POST /api/vehicles/{id}/records</c>: manutenção de motor sem peças, em 01/10/2026 aos 85.000 km.
+    /// Para <c>PUT</c>, acrescente <c>rowVersion</c> com <see cref="With"/> (o <c>fulfilledReminderIds</c> extra é ignorado).
+    /// </summary>
+    public static Dictionary<string, object?> Record(
+        string title = "Troca de óleo",
+        DateOnly? date = null,
+        int? odometer = 85_000,
+        string type = "maintenance",
+        string category = "engine",
+        decimal? laborCost = null,
+        string? replacedOriginalPart = null,
+        object[]? parts = null,
+        Guid[]? fulfilledReminderIds = null) => new()
+    {
+        ["type"] = type,
+        ["date"] = date ?? new DateOnly(2026, 10, 1),
+        ["odometer"] = odometer,
+        ["title"] = title,
+        ["description"] = null,
+        ["category"] = category,
+        ["performedBy"] = null,
+        ["laborCost"] = laborCost,
+        ["replacedOriginalPart"] = replacedOriginalPart,
+        ["parts"] = parts ?? [],
+        ["fulfilledReminderIds"] = fulfilledReminderIds ?? []
+    };
+
+    /// <summary>Uma peça do corpo de <see cref="Record"/>.</summary>
+    public static Dictionary<string, object?> Part(
+        string name = "Filtro de óleo",
+        decimal quantity = 1m,
+        string unit = "unit",
+        decimal? unitPrice = null,
+        string? brand = null,
+        string? partNumber = null) => new()
+    {
+        ["name"] = name,
+        ["brand"] = brand,
+        ["partNumber"] = partNumber,
+        ["quantity"] = quantity,
+        ["unit"] = unit,
+        ["unitPrice"] = unitPrice
+    };
+
     public static Dictionary<string, object?> With(this Dictionary<string, object?> body, string key, object? value)
     {
         body[key] = value;
@@ -105,5 +150,38 @@ public static class TestData
     {
         var reminders = await client.GetRemindersAsync(vehicleId);
         return reminders.EnumerateArray().Single(reminder => reminder.GetProperty("id").GetGuid() == id);
+    }
+
+    /// <summary>Cria um registro no veículo (corpo padrão de <see cref="Record"/>) e devolve o id.</summary>
+    public static async Task<Guid> CreateRecordAsync(
+        this HttpClient client, Guid vehicleId, Dictionary<string, object?>? body = null)
+    {
+        using var response = await client.PostAsJsonAsync($"/api/vehicles/{vehicleId}/records", body ?? Record(), TestJson.Options);
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created,
+            $"Create record failed: {(int)response.StatusCode} {content}");
+
+        return JsonSerializer.Deserialize<JsonElement>(content, TestJson.Options).GetProperty("id").GetGuid();
+    }
+
+    public static async Task<JsonElement> GetRecordAsync(this HttpClient client, Guid vehicleId, Guid id)
+    {
+        using var response = await client.GetAsync($"/api/vehicles/{vehicleId}/records/{id}");
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK,
+            $"Get record failed: {(int)response.StatusCode} {content}");
+
+        return JsonSerializer.Deserialize<JsonElement>(content, TestJson.Options);
+    }
+
+    /// <summary>Uma página da lista de registros (<c>{ items, nextCursor }</c>); <paramref name="query"/> sem o <c>?</c>.</summary>
+    public static async Task<JsonElement> GetRecordsAsync(this HttpClient client, Guid vehicleId, string query = "")
+    {
+        using var response = await client.GetAsync($"/api/vehicles/{vehicleId}/records?{query}");
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK,
+            $"List records failed: {(int)response.StatusCode} {content}");
+
+        return JsonSerializer.Deserialize<JsonElement>(content, TestJson.Options);
     }
 }

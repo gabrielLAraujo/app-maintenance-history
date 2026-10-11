@@ -23,6 +23,81 @@ namespace Garage.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Garage.Domain.Records.ServiceRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("description");
+
+                    b.Property<decimal?>("LaborCost")
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("labor_cost");
+
+                    b.Property<int?>("Odometer")
+                        .HasColumnType("integer")
+                        .HasColumnName("odometer");
+
+                    b.Property<string>("PerformedBy")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("performed_by");
+
+                    b.Property<string>("ReplacedOriginalPart")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("replaced_original_part");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vehicle_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_service_records");
+
+                    b.HasIndex("VehicleId", "Date", "Id")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("ix_service_records_vehicle_id_date_id");
+
+                    b.ToTable("service_records", (string)null);
+                });
+
             modelBuilder.Entity("Garage.Domain.Reminders.Reminder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -411,6 +486,71 @@ namespace Garage.Infrastructure.Persistence.Migrations
                         .HasName("pk_asp_net_user_tokens");
 
                     b.ToTable("asp_net_user_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("Garage.Domain.Records.ServiceRecord", b =>
+                {
+                    b.HasOne("Garage.Domain.Vehicles.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_service_records_vehicles_vehicle_id");
+
+                    b.OwnsMany("Garage.Domain.Records.Part", "Parts", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<string>("Brand")
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("brand");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(120)
+                                .HasColumnType("character varying(120)")
+                                .HasColumnName("name");
+
+                            b1.Property<string>("PartNumber")
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("part_number");
+
+                            b1.Property<decimal>("Quantity")
+                                .HasColumnType("numeric(8,3)")
+                                .HasColumnName("quantity");
+
+                            b1.Property<Guid>("ServiceRecordId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("service_record_id");
+
+                            b1.Property<string>("Unit")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)")
+                                .HasColumnName("unit");
+
+                            b1.Property<decimal?>("UnitPrice")
+                                .HasColumnType("numeric(12,2)")
+                                .HasColumnName("unit_price");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_service_record_parts");
+
+                            b1.HasIndex("ServiceRecordId")
+                                .HasDatabaseName("ix_service_record_parts_service_record_id");
+
+                            b1.ToTable("service_record_parts", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ServiceRecordId")
+                                .HasConstraintName("fk_service_record_parts_service_records_service_record_id");
+                        });
+
+                    b.Navigation("Parts");
                 });
 
             modelBuilder.Entity("Garage.Domain.Reminders.Reminder", b =>

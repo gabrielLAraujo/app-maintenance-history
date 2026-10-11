@@ -1,4 +1,5 @@
 using Garage.Application.Vehicles;
+using Garage.Application.Vehicles.CorrectOdometer;
 using Garage.Application.Vehicles.CreateVehicle;
 using Garage.Application.Vehicles.UpdateOdometer;
 using Garage.Application.Vehicles.UpdateVehicle;
@@ -57,4 +58,9 @@ public sealed record UpdateVehicleRequest(
 public sealed record UpdateOdometerRequest(int Km)
 {
     internal UpdateOdometerCommand ToCommand(Guid vehicleId) => new(vehicleId, Km);
+}
+
+public sealed record CorrectOdometerRequest(int Km)
+{
+    internal CorrectOdometerCommand ToCommand(Guid vehicleId) => new(vehicleId, Km);
 }
