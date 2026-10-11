@@ -42,6 +42,8 @@ if (!app.Environment.IsProduction())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
+    // Ate o front existir (Plano 2), a raiz leva para a documentacao da API.
+    app.MapGet("/", () => Results.Redirect("/scalar")).ExcludeFromDescription();
 }
 
 var api = app.MapGroup("/api").RequireAuthorization();
