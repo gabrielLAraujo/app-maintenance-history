@@ -158,6 +158,48 @@ public sealed class AuthTests(GarageApiFactory factory)
     }
 
     [Fact]
+    public async Task Antiforgery_endpoint_works_over_plain_http()
+    {
+        using var client = factory.CreateCookieClient("http://localhost");
+
+        using var response = await client.GetAsync("/api/auth/antiforgery");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Antiforgery_validation_works_over_plain_http()
+    {
+        using var client = factory.CreateCookieClient("http://localhost");
+        await client.RefreshAntiforgeryAsync();
+
+        // Com o token o POST chega ao handler (401 de credenciais), em vez de 500 na validação ou 400 de antiforgery.
+        using var withToken = await PostCredentialsAsync(client, "/api/auth/login", NewEmail(), WrongPassword);
+        await withToken.AssertProblemAsync(HttpStatusCode.Unauthorized, "auth.invalid_credentials");
+
+        client.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
+        using var withoutToken = await PostCredentialsAsync(client, "/api/auth/login", NewEmail(), WrongPassword);
+        await withoutToken.AssertProblemAsync(HttpStatusCode.BadRequest, "auth.antiforgery_invalid");
+    }
+
+    [Fact]
+    public async Task Antiforgery_cookies_are_secure_behind_a_tls_terminating_proxy()
+    {
+        using var client = factory.CreateCookieClient("http://localhost");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/antiforgery");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Contains("secure", response.FindSetCookie("XSRF-TOKEN"), StringComparison.OrdinalIgnoreCase);
+        // O cookie do antiforgery (nome com sufixo gerado) segue o esquema da requisição: seguro só por causa do X-Forwarded-Proto.
+        var antiforgeryCookie = Assert.Single(response.Headers.GetValues("Set-Cookie"),
+            cookie => cookie.StartsWith(".AspNetCore.Antiforgery.", StringComparison.Ordinal));
+        Assert.Contains("secure", antiforgeryCookie, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Me_without_cookie_returns_401_not_redirect()
     {
         using var client = factory.CreateCookieClient();

@@ -56,7 +56,11 @@ public static class AuthSetup
         services.AddAntiforgery(options =>
         {
             options.HeaderName = AntiforgeryHeaderName;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            // Só o cookie do antiforgery acompanha o esquema da requisição: com Always o antiforgery lança
+            // InvalidOperationException (500) em qualquer requisição HTTP simples (dev local, proxy do front).
+            // Em produção o Traefik manda X-Forwarded-Proto: https, então o cookie sai Secure. O cookie de
+            // autenticação continua Always.
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.Cookie.SameSite = SameSiteMode.Strict;
         });
 

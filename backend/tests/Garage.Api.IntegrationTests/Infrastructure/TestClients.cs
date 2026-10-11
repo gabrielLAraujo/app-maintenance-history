@@ -15,11 +15,14 @@ public static class TestClients
     private const string AntiforgeryHeader = "X-XSRF-TOKEN";
     private const string AntiforgeryCookie = "XSRF-TOKEN";
 
-    /// <summary>Cliente com cookies habilitados e <c>https://localhost</c> como base (os cookies são <c>Secure</c>).</summary>
-    public static HttpClient CreateCookieClient(this WebApplicationFactory<Program> factory) =>
+    /// <summary>
+    /// Cliente com cookies habilitados e, por padrão, <c>https://localhost</c> como base (os cookies são <c>Secure</c>).
+    /// Passe <c>http://localhost</c> para exercitar a API sem TLS (dev local, proxy do front).
+    /// </summary>
+    public static HttpClient CreateCookieClient(this WebApplicationFactory<Program> factory, string baseAddress = "https://localhost") =>
         factory.CreateClient(new WebApplicationFactoryClientOptions
         {
-            BaseAddress = new Uri("https://localhost"),
+            BaseAddress = new Uri(baseAddress),
             HandleCookies = true,
             AllowAutoRedirect = false
         });
