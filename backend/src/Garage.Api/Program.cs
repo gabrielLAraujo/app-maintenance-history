@@ -1,12 +1,15 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Garage.Api.Auth;
+using Garage.Api.Cli;
 using Garage.Api.Endpoints;
 using Garage.Api.Http;
 using Garage.Application;
 using Garage.Infrastructure;
 using Garage.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -25,18 +28,41 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 
+// A API roda atrás do proxy reverso (Traefik no Coolify), que termina o TLS e é o único a alcançá-la:
+// confia nos cabeçalhos dele para o esquema (cookies Secure) e o IP do cliente (rate limit).
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddAuth();
 builder.Services.AddAuthorization();
+builder.Services.AddRateLimiting();
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks().AddDbContextCheck<GarageDbContext>();
 
 var app = builder.Build();
 
-app.UseSerilogRequestLogging();
+// Comando administrativo: roda e sai, sem subir o servidor.
+if (args is ["reset-password", var email])
+{
+    Environment.ExitCode = await ResetPasswordCli.RunAsync(app.Services, email, Console.Out);
+    return;
+}
+
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
+app.UseSerilogRequestLogging();
+app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<AntiforgeryValidationMiddleware>();
+app.UseRateLimiter();
 
 if (!app.Environment.IsProduction())
 {
