@@ -120,7 +120,7 @@ public sealed class FipeTranslatorTests
     [Fact]
     public void ToDetails_drops_a_model_year_that_is_not_a_year()
     {
-        var zeroKm = new FipeVehicleDetail(1, "R$ 90.000,00", "Honda", "Civic", 32000, "Flex", "014017-1", "F", "outubro de 2026");
+        var zeroKm = new FipeVehicleDetail("R$ 90.000,00", "Honda", "Civic", 32000, "Flex", "014017-1", "outubro de 2026");
 
         Assert.Null(FipeTranslator.ToDetails(zeroKm).ModelYear);
     }
@@ -180,6 +180,22 @@ public sealed class FipeTranslatorTests
     [InlineData("{\"price\":\"R$ 1,00\"}")]
     public void Detail_rejects_payloads_that_are_not_a_vehicle_detail(string json) =>
         Assert.Throws<JsonException>(() => FipeJson.Detail(json));
+
+    [Fact]
+    public void Detail_does_not_require_the_fields_the_translator_does_not_use()
+    {
+        // vehicleType e fuelAcronym não entram na tradução: se a FIPE deixar de mandá-los, a cotação continua valendo.
+        const string json = """
+            {"price":"R$ 10.000,00","brand":"Honda","model":"Civic Sedan LX 1.6 16V Mec. 4p","modelYear":1998,
+             "fuel":"Gasolina","codeFipe":"005340-6","referenceMonth":"outubro de 2026"}
+            """;
+
+        var details = FipeTranslator.ToDetails(FipeJson.Detail(json));
+
+        Assert.Equal("005340-6", details.FipeCode);
+        Assert.Equal(10000.00m, details.Price);
+        Assert.Equal(1998, details.ModelYear);
+    }
 
     private static string Fixture(string name) => File.ReadAllText(Path.Combine(FixturesPath, name));
 }

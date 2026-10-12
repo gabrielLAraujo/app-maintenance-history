@@ -216,6 +216,43 @@ public sealed class CatalogTests(GarageApiFactory factory) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Cache_row_that_no_longer_translates_counts_as_missing()
+    {
+        // Linha dentro da validade, mas num formato que o tradutor não entende (contrato antigo, dado corrompido).
+        await SeedCacheAsync(FipeBrands, """{"formato":"antigo"}""", Now);
+        factory.Fipe.Responses[FipeBrands] = """[{"code":"25","name":"Honda"}]""";
+        using var client = await factory.CreateUserClientAsync();
+
+        using var refetched = await client.GetAsync(MakesUrl);
+        using var cached = await client.GetAsync(MakesUrl);
+
+        foreach (var response in new[] { refetched, cached })
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("Honda", Assert.Single((await Json(response)).EnumerateArray()).GetProperty("name").GetString());
+        }
+
+        // A FIPE foi consultada uma vez, e a resposta nova substituiu a linha inválida.
+        Assert.Equal(1, factory.Fipe.Calls);
+        Assert.Equal(["fipe:cars/brands"], await CachedKeysAsync());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(40)]
+    public async Task Cache_row_that_no_longer_translates_with_fipe_down_returns_503(int ageInDays)
+    {
+        await SeedCacheAsync(FipeBrands, """[{"codigo":"25","nome":"Honda"}]""", Now.AddDays(-ageInDays));
+        factory.Fipe.IsDown = true;
+        using var client = await factory.CreateUserClientAsync();
+
+        using var response = await client.GetAsync(MakesUrl);
+
+        await response.AssertProblemAsync(HttpStatusCode.ServiceUnavailable, "catalog.unavailable");
+        Assert.True(factory.Fipe.Calls > 0, "Cache inválido conta como ausente: a FIPE deveria ter sido consultada.");
+    }
+
+    [Fact]
     public async Task Catalog_requires_login()
     {
         ArrangeFipe();
@@ -367,6 +404,14 @@ public sealed class CatalogTests(GarageApiFactory factory) : IAsyncLifetime
     {
         await using var scope = factory.Services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<GarageDbContext>().Database.ExecuteSqlRawAsync("DELETE FROM catalog_cache");
+    }
+
+    private async Task SeedCacheAsync(string fipePath, string payload, DateTimeOffset fetchedAt)
+    {
+        var key = $"fipe:{fipePath}";
+        await using var scope = factory.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<GarageDbContext>().Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO catalog_cache (key, payload, fetched_at) VALUES ({key}, CAST({payload} AS jsonb), {fetchedAt})");
     }
 
     private async Task AgeCacheAsync(string fipePath, int days)

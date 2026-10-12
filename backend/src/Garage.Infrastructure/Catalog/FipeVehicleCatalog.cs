@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Garage.Application.Abstractions.Ports;
 using Garage.Application.Catalog;
@@ -14,7 +15,7 @@ namespace Garage.Infrastructure.Catalog;
 /// <summary>
 /// O catálogo sobre a FIPE (spec 6). Cada consulta tem a chave <c>fipe:{caminho}</c> no cache: dentro da validade responde
 /// do cache; vencido, consulta a FIPE e renova; se a FIPE falha, serve o cache vencido (stale-on-error) e, sem cache,
-/// responde <see cref="CatalogErrors.Unavailable"/>.
+/// responde <see cref="CatalogErrors.Unavailable"/>. Uma linha de cache que não se traduz mais conta como cache ausente.
 /// </summary>
 internal sealed partial class FipeVehicleCatalog(
     GarageDbContext db,
@@ -69,11 +70,14 @@ internal sealed partial class FipeVehicleCatalog(
     private async Task<Result<T>> GetAsync<T>(string path, TimeSpan validity, Func<string, T> translate, CancellationToken ct)
     {
         var key = $"fipe:{path}";
-        var cached = await db.Set<CatalogCacheEntry>().AsNoTracking().FirstOrDefaultAsync(entry => entry.Key == key, ct);
+        var entry = await db.Set<CatalogCacheEntry>().AsNoTracking().FirstOrDefaultAsync(row => row.Key == key, ct);
         var now = time.GetUtcNow();
 
-        if (cached is not null && now - cached.FetchedAt < validity)
-            return translate(cached.Payload);
+        // A linha guarda a resposta crua: se ela deixou de ser traduzível (contrato mudou, dado corrompido), vale como cache
+        // ausente — consulta a FIPE de novo e, se ela falhar, responde catalog.unavailable em vez de um 500.
+        var hasCache = TryTranslate(entry, path, translate, out var cached);
+        if (hasCache && now - entry!.FetchedAt < validity)
+            return cached!;
 
         string payload;
         T value;
@@ -85,18 +89,40 @@ internal sealed partial class FipeVehicleCatalog(
             value = translate(payload);
         }
         catch (Exception ex) when (ex is HttpRequestException or TimeoutRejectedException or BrokenCircuitException
-                                       or JsonException or FormatException)
+                                   || IsTranslationFailure(ex))
         {
-            LogFipeFailed(logger, ex, path, hasStaleCache: cached is not null);
-            if (cached is null)
+            LogFipeFailed(logger, ex, path, hasStaleCache: hasCache);
+            if (!hasCache)
                 return CatalogErrors.Unavailable;
 
-            return translate(cached.Payload);
+            return cached!;
         }
 
         await SaveAsync(key, payload, now, ct);
         return value;
     }
+
+    private bool TryTranslate<T>(
+        CatalogCacheEntry? entry, string path, Func<string, T> translate, [MaybeNullWhen(false)] out T value)
+    {
+        value = default;
+        if (entry is null)
+            return false;
+
+        try
+        {
+            value = translate(entry.Payload);
+            return true;
+        }
+        catch (Exception ex) when (IsTranslationFailure(ex))
+        {
+            LogCachedPayloadInvalid(logger, ex, path);
+            return false;
+        }
+    }
+
+    // Formato inesperado: JSON fora do contrato (JsonException) ou um valor que não é o que diz ser (FormatException).
+    private static bool IsTranslationFailure(Exception exception) => exception is JsonException or FormatException;
 
     // Upsert em SQL: duas requisições para a mesma chave ao mesmo tempo não se atropelam (ON CONFLICT). Consultas não rodam
     // dentro de transação do UnitOfWork, então o comando é confirmado na hora, como o resto do cache.
@@ -125,4 +151,10 @@ internal sealed partial class FipeVehicleCatalog(
         Level = LogLevel.Warning,
         Message = "FIPE request for {Path} failed (expired cache available: {HasStaleCache})")]
     private static partial void LogFipeFailed(ILogger logger, Exception exception, string path, bool hasStaleCache);
+
+    [LoggerMessage(
+        EventId = 2,
+        Level = LogLevel.Warning,
+        Message = "Cached FIPE payload for {Path} could not be translated; treating it as missing")]
+    private static partial void LogCachedPayloadInvalid(ILogger logger, Exception exception, string path);
 }

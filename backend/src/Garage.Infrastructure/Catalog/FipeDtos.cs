@@ -7,21 +7,24 @@ namespace Garage.Infrastructure.Catalog;
 /// <summary>Uma marca, um modelo ou um ano: <c>code</c> e <c>name</c>.</summary>
 internal sealed record FipeItem(string Code, string Name);
 
-/// <summary>A cotação de um veículo/ano. <c>price</c> é texto ("R$ 10.000,00") e <c>referenceMonth</c> também.</summary>
+/// <summary>
+/// A cotação de um veículo/ano. <c>price</c> é texto ("R$ 10.000,00") e <c>referenceMonth</c> também. <c>vehicleType</c> e
+/// <c>fuelAcronym</c> não entram na tradução: são opcionais, para a falta deles não derrubar a cotação.
+/// </summary>
 internal sealed record FipeVehicleDetail(
-    int VehicleType,
     string Price,
     string Brand,
     string Model,
     int ModelYear,
     string Fuel,
     string CodeFipe,
-    string FuelAcronym,
-    string ReferenceMonth);
+    string ReferenceMonth,
+    int? VehicleType = null,
+    string? FuelAcronym = null);
 
 /// <summary>
-/// Leitura estrita do JSON da FIPE: campo ausente ou nulo é <see cref="JsonException"/>. Uma resposta que não tem o formato
-/// esperado (página de erro de um proxy, contrato alterado) não pode ser traduzida nem guardada no cache.
+/// Leitura estrita do JSON da FIPE: campo usado pelo tradutor ausente ou nulo é <see cref="JsonException"/>. Uma resposta que
+/// não tem o formato esperado (página de erro de um proxy, contrato alterado) não pode ser traduzida nem guardada no cache.
 /// </summary>
 internal static class FipeJson
 {

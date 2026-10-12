@@ -135,6 +135,37 @@ public sealed class ReminderTests(GarageApiFactory factory)
     }
 
     [Fact]
+    public async Task Missing_base_date_returns_400_on_create_and_update()
+    {
+        factory.Clock.SetUtcNow(Now);
+        using var client = await factory.CreateUserClientAsync();
+        var vehicleId = await client.CreateVehicleAsync();
+        var id = await client.CreateReminderAsync(vehicleId);
+        var rowVersion = (await client.GetReminderAsync(vehicleId, id)).GetProperty("rowVersion").GetUInt32();
+        // Sem o campo, o JSON deixaria a data em 0001-01-01 e o lembrete nasceria vencido há séculos.
+        var create = TestData.Reminder();
+        create.Remove("lastDoneDate");
+        var update = TestData.Reminder(title: "Outro").With("rowVersion", rowVersion);
+        update.Remove("lastDoneDate");
+        var defaultDate = TestData.Reminder().With("lastDoneDate", "0001-01-01");
+
+        using var created = await client.PostAsJsonAsync(RemindersUrl(vehicleId), create, TestJson.Options);
+        using var updated = await client.PutAsJsonAsync($"{RemindersUrl(vehicleId)}/{id}", update, TestJson.Options);
+        using var explicitDefault = await client.PostAsJsonAsync(RemindersUrl(vehicleId), defaultDate, TestJson.Options);
+
+        foreach (var response in new[] { created, updated, explicitDefault })
+        {
+            var errors = (await response.AssertProblemAsync(HttpStatusCode.BadRequest, "validation.failed")).GetProperty("errors");
+            Assert.Equal(new[] { "lastDoneDate" }, FieldNames(errors));
+            Assert.Equal("Informe a data da última vez.", errors.GetProperty("lastDoneDate")[0].GetString());
+        }
+
+        var untouched = Assert.Single((await client.GetRemindersAsync(vehicleId)).EnumerateArray());
+        Assert.Equal("Troca de óleo", untouched.GetProperty("title").GetString());
+        Assert.Equal("2026-09-01", untouched.GetProperty("lastDoneDate").GetString());
+    }
+
+    [Fact]
     public async Task Create_with_invalid_title_returns_400()
     {
         factory.Clock.SetUtcNow(Now);

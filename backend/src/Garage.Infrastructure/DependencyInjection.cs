@@ -34,7 +34,12 @@ public static class DependencyInjection
         services.AddFipeClient(config);
         services.AddScoped<IVehicleCatalog, FipeVehicleCatalog>();
 
-        services.AddOptions<StorageOptions>().Bind(config.GetSection(StorageOptions.SectionName));
+        // Configuração inválida derruba a subida (ValidateOnStart), não a primeira requisição que precisar dela.
+        services.AddOptions<StorageOptions>()
+            .Bind(config.GetSection(StorageOptions.SectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.RootPath),
+                "Storage:RootPath não está configurado: defina a pasta dos anexos (na imagem, /data/attachments).")
+            .ValidateOnStart();
         services.AddSingleton<IFileStorage, LocalDiskFileStorage>();
         services.AddSingleton<IImageProcessor, MagickImageProcessor>();
 
@@ -43,7 +48,12 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
 
-        services.AddOptions<AppOptions>().Bind(config.GetSection(AppOptions.SectionName));
+        services.AddOptions<AppOptions>()
+            .Bind(config.GetSection(AppOptions.SectionName))
+            .Validate(options => AppOptions.IsKnownTimeZone(options.TimeZone),
+                "App:TimeZone não é um fuso conhecido pelo sistema (id IANA, ex.: America/Sao_Paulo; "
+                + "a imagem precisa de ICU e tzdata).")
+            .ValidateOnStart();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IAppClock, AppClock>();
 

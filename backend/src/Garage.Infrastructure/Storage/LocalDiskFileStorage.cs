@@ -4,8 +4,8 @@ using Microsoft.Extensions.Options;
 namespace Garage.Infrastructure.Storage;
 
 /// <summary>
-/// Arquivos dos anexos numa pasta local (<c>Storage:RootPath</c>). A raiz é lida a cada operação: sem configuração,
-/// só gravar ou ler anexos falha, e o resto da API (inclusive excluir veículos sem anexos) segue funcionando.
+/// Arquivos dos anexos numa pasta local (<c>Storage:RootPath</c>, obrigatória: sem ela a API nem sobe). A raiz é lida a cada
+/// operação, e a checagem de raiz vazia continua aqui como última barreira para quem usa a classe fora do host.
 /// </summary>
 internal sealed class LocalDiskFileStorage(IOptions<StorageOptions> options) : IFileStorage
 {

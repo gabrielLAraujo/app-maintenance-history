@@ -27,6 +27,9 @@ internal sealed class ReminderInputValidator : AbstractValidator<ReminderInput>
             .OverridePropertyName(nameof(ReminderInput.IntervalMonths))
             .When(x => x.IntervalMonths is not null);
 
+        // Sem o campo no JSON a data chega como 0001-01-01 (o padrão de DateOnly), e o lembrete nasceria vencido.
+        RuleFor(x => x.LastDoneDate).NotEmpty().WithMessage("Informe a data da última vez.");
+
         // Sem a km da última vez não há como calcular o que falta para um lembrete por km (o domínio lança nesse caso).
         RuleFor(x => x.LastDoneOdometer)
             .NotNull().WithMessage("Informe a km da última vez para lembretes por km.")

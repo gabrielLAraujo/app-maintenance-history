@@ -5,9 +5,11 @@ using Garage.Api.IntegrationTests.Infrastructure;
 using Garage.Domain.Common;
 using Garage.Domain.Records;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Serilog.Events;
 
 namespace Garage.Api.IntegrationTests;
@@ -45,6 +47,22 @@ public sealed class HostTests(GarageApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"openapi\"", await response.Content.ReadAsStringAsync());
+    }
+
+    [Theory]
+    [InlineData("App:TimeZone", "Fuso/Inexistente")]
+    [InlineData("App:TimeZone", "")]
+    [InlineData("Storage:RootPath", "")]
+    [InlineData("Storage:RootPath", "   ")]
+    public void Invalid_configuration_stops_the_host_at_startup(string key, string value)
+    {
+        using var misconfigured = factory.WithWebHostBuilder(builder => builder.UseSetting(key, value));
+
+        // Falha ao subir, não na primeira requisição que precisar do valor.
+        var exception = Record.Exception(() => misconfigured.CreateClient());
+
+        var validation = Assert.IsType<OptionsValidationException>(exception);
+        Assert.Contains(key, validation.Message, StringComparison.Ordinal);
     }
 
     [Fact]

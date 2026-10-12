@@ -4,7 +4,10 @@ using ImageMagick;
 
 namespace Garage.Infrastructure.Storage;
 
-/// <summary>A5 com Magick.NET: orientação corrigida, metadados removidos, maior lado ≤ 2560 px; PNG fica PNG, o resto vira JPEG 85.</summary>
+/// <summary>
+/// A5 com Magick.NET: orientação corrigida, cores convertidas para sRGB, metadados removidos, maior lado ≤ 2560 px; PNG fica
+/// PNG, o resto vira JPEG 85.
+/// </summary>
 internal sealed class MagickImageProcessor : IImageProcessor
 {
     internal const uint MaxSide = 2560;
@@ -37,6 +40,10 @@ internal sealed class MagickImageProcessor : IImageProcessor
 
             // A orientação vem do EXIF: precisa ser aplicada antes de Strip removê-lo.
             image.AutoOrient();
+            // O perfil de cor também sai no Strip: uma foto em Display P3 ou Adobe RGB teria os números de pixel lidos como
+            // sRGB e ficaria desbotada. Converter antes deixa as cores certas sem perfil nenhum.
+            if (image.GetColorProfile() is not null)
+                image.TransformColorSpace(ColorProfiles.SRGB);
             image.Strip();
             image.Resize(new MagickGeometry(MaxSide, MaxSide) { Greater = true });
 
