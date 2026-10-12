@@ -44,7 +44,8 @@ docker run -d --name garage-db -e POSTGRES_USER=garage -e POSTGRES_PASSWORD=gara
 ### 2. Configuração da API (uma vez)
 
 O `appsettings.Development.json` já aponta para `localhost:5432` e liga os dados de exemplo (`Demo:Enabled`), mas não traz
-a senha do banco, a pasta dos anexos nem libera o cadastro de conta. Guarde isso nos user-secrets (ficam fora do git):
+a senha do banco, a pasta dos anexos nem libera o cadastro de conta. Guarde isso nos user-secrets (ficam fora do git). A
+pasta dos anexos é obrigatória: sem `Storage:RootPath` a API não sobe (`OptionsValidationException` na partida).
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:Garage" "Host=localhost;Port=5432;Database=garage;Username=garage;Password=garage_dev" --project src/Garage.Api
@@ -79,7 +80,8 @@ Sobe em <http://localhost:5081> (ambiente Development):
 | `/openapi/v1.json` | Contrato OpenAPI; não precisa de banco para responder |
 | `/api/health`, `/api/health/ready` | Liveness e verificação do banco |
 
-O `/scalar` e o `/openapi` só existem fora de produção.
+O `/scalar` e o `/openapi` só existem fora de `Production` (o ambiente publicado hoje é `Staging`, então `/scalar` está
+visível).
 
 Para chamar rotas de escrita pelo Scalar ou por qualquer cliente HTTP:
 
@@ -88,7 +90,7 @@ Para chamar rotas de escrita pelo Scalar ou por qualquer cliente HTTP:
 2. Os cookies `garage_auth` (sessão) e `XSRF-TOKEN` são `Secure` e `SameSite=Strict`. Os navegadores os aceitam em
    `http://localhost`, mas um cliente que guarda cookies sozinho pode não devolvê-los por HTTP (o `CookieContainer` do
    .NET, por exemplo): nesse caso mande o cabeçalho `Cookie` você mesmo.
-3. A senha precisa de 10 caracteres ou mais. O login é limitado a 5 tentativas por minuto por IP (429
+3. A senha precisa de 10 caracteres ou mais. Login e cadastro dividem a cota de 5 tentativas por minuto por IP (429
    `rate_limit.exceeded`) e 5 senhas erradas bloqueiam a conta por 15 minutos.
 
 ### 5. Front (terminal 2)
@@ -138,15 +140,16 @@ Vêm do `appsettings*.json`, dos user-secrets (desenvolvimento) ou de variáveis
 | Chave | Padrão | Para que serve |
 |---|---|---|
 | `ConnectionStrings:Garage` | — (o `appsettings.Development.json` traz host, banco e usuário, sem senha) | Conexão com o PostgreSQL |
-| `App:TimeZone` | `America/Sao_Paulo` | Fuso (id IANA) que define o "hoje" da aplicação |
+| `App:TimeZone` | `America/Sao_Paulo` | Fuso (id IANA) que define o "hoje" da aplicação. Fuso desconhecido: a API não sobe |
 | `Auth:AllowRegistration` | `false` | `true` cria a rota `POST /api/auth/register`; desligada, ela nem existe (404). Ligue só para criar a conta |
 | `Demo:Enabled` | `false` (`true` no `appsettings.Development.json`) | `true` cria a rota `POST /api/demo/seed` (dados de exemplo) |
 | `DataProtection:KeysPath` | vazio | Pasta das chaves do Data Protection. Vazia, as chaves não são persistidas e cada deploy derruba as sessões. Na imagem: `/data/keys` |
-| `Storage:RootPath` | vazio | Pasta dos arquivos dos anexos. Vazia, gravar ou ler anexo falha (o resto da API segue). Na imagem: `/data/attachments` |
+| `Storage:RootPath` | vazio | Pasta dos arquivos dos anexos, obrigatória: vazia, a API não sobe. Na imagem: `/data/attachments` |
 | `Fipe:BaseUrl` | `https://fipe.parallelum.com.br/api/v2/` | URL base da API da FIPE |
 | `Fipe:Token` | vazio | Token de assinatura da FIPE (cabeçalho `X-Subscription-Token`): sem ele a cota é de 500 consultas por dia; com o token gratuito, 1.000 |
-| `RateLimits:LoginPerMinute` | `5` | `POST /api/auth/login`, por IP |
-| `RateLimits:PublicPerMinute` | `60` | `/api/public/*`, por IP |
+| `RateLimits:LoginPerMinute` | `5` | `POST /api/auth/login` e `POST /api/auth/register` (a mesma cota), por IP |
+| `RateLimits:PublicPerMinute` | `60` | `GET /api/public/{token}` (a visão do link), por IP |
+| `RateLimits:PublicPhotosPerMinute` | `600` | `GET /api/public/{token}/attachments/{id}` (as fotos da página pública), por IP |
 | `RateLimits:CatalogPerMinute` | `30` | `/api/catalog/*`, por usuário |
 | `RateLimits:UploadsPerMinute` | `30` | Upload de anexos, por usuário |
 

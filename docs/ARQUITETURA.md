@@ -152,7 +152,7 @@ Cada agregado referencia o outro só pelo **id** (`VehicleId`), e cada um tem se
 | **Km (V1–V3)** | Registro com km maior que a atual atualiza o veículo; atualização manual não pode diminuir; correção de digitação pode diminuir, mas nunca abaixo da maior km do histórico. |
 | **Registros (R1–R6)** | Data não pode ser futura; "peça original substituída" só em Modificação; a km precisa ficar entre a do registro anterior e a do seguinte (cronologia); custo total = peças (qtd × preço) + mão de obra. |
 | **Lembretes (M1–M6)** | Por km, por meses ou os dois ("o que vier primeiro"). Status = pior eixo: vencido se ≤ 0; "vence em breve" se ≤ 1.000 km ou ≤ 30 dias. Ao lançar um registro, o usuário marca quais lembretes ele cumpriu. |
-| **Anexos (A1–A5)** | Até 10 MB e 20 por registro. Tipo decidido pelos **bytes iniciais** (JPEG, PNG, WebP, PDF), nunca pelo nome. Fotos são reprocessadas: remove EXIF (GPS), limita a 2560 px, recomprime JPEG q85. Documentos nunca ficam públicos. |
+| **Anexos (A1–A5)** | Até 10 MB e 20 por registro. Tipo decidido pelos **bytes iniciais** (JPEG, PNG, WebP, PDF), nunca pelo nome. Fotos são reprocessadas: converte para sRGB quando há perfil de cor, remove EXIF (GPS) e perfis, limita a 2560 px, recomprime JPEG q85. Documentos nunca ficam públicos. |
 | **Links públicos (S1–S2)** | Token aleatório de 32 bytes. Revogado, expirado, malformado ou inexistente → o mesmo 404. A página pública mostra só uma lista permitida de campos. |
 
 ### Eventos de domínio
@@ -183,8 +183,10 @@ flowchart LR
 | Login | ASP.NET Identity, cookie `garage_auth` (HttpOnly, Secure, SameSite=Strict, 14 dias renováveis com o uso). Senha de 10+ caracteres; 5 senhas erradas bloqueiam a conta por 15 minutos. Cadastro de conta controlado por `Auth:AllowRegistration` (desligado, a rota nem existe). As chaves do Data Protection ficam em `DataProtection:KeysPath` (volume) para a sessão sobreviver ao deploy. |
 | CSRF | Antiforgery: `GET /api/auth/antiforgery` grava o cookie `XSRF-TOKEN`; o front devolve no cabeçalho `X-XSRF-TOKEN` em toda escrita. |
 | Autorização | Todo `/api` exige login por padrão; só health, auth e rotas públicas são anônimas. Dono verificado em cada caso de uso. |
-| Rate limit | Políticas por IP (login, público) e por usuário (catálogo, uploads); excesso → 429 `rate_limit.exceeded`. |
-| Cabeçalhos | `SecurityHeadersMiddleware` põe `X-Content-Type-Options: nosniff` em toda resposta (inclusive erros); rotas públicas com `X-Robots-Tag: noindex` e `Referrer-Policy: no-referrer`. |
+| Rate limit | Políticas por IP (login e cadastro na mesma cota; visão pública; fotos da página pública, com cota própria) e por usuário (catálogo, uploads); excesso → 429 `rate_limit.exceeded`. |
+| Cabeçalhos | `SecurityHeadersMiddleware` põe `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` e `Referrer-Policy: no-referrer` em toda resposta (inclusive erros) e, por HTTPS fora de Development, `Strict-Transport-Security: max-age=31536000`. Rotas públicas e a página `/p/` com `X-Robots-Tag: noindex`; o `index.html` do front também traz `<meta name="referrer" content="no-referrer">`. |
+| Cache | Visão pública `no-store`; foto pública `private, max-age=3600` (revogar o link barra as cargas novas); anexos do dono `private, no-store`. |
+| Logs | O token dos links públicos sai mascarado (`/api/public/***`, `/p/***`) em toda propriedade de todo evento do Serilog (`PublicTokenMasking`), inclusive o `RequestPath` do escopo da requisição. Cliente que abandona a requisição não vira `Error`. |
 | Uploads | Detecção por assinatura, reprocessamento das imagens, nome de arquivo limpo, gravação em disco fora do webroot com chave aleatória. |
 | Página pública | Projeção campo a campo (allowlist): nada de VIN, observações, documentos, lembretes ou dados do dono. Custos e placa só se o link permitir. |
 
@@ -194,13 +196,13 @@ O app não usa os modelos da FIPE diretamente. `FipeClient` busca o JSON bruto, 
 
 - **Cache em banco** (`catalog_cache`): 30 dias para listas, 7 dias para detalhes e preço.
 - **Resiliência:** timeout de 5 s por tentativa, até 2 retries em falhas de rede/5xx (nunca em 429).
-- **Fallback:** FIPE fora do ar → serve o cache vencido; sem cache → 503 `catalog.unavailable`, e o front oferece o preenchimento manual.
+- **Fallback:** FIPE fora do ar → serve o cache vencido; sem cache → 503 `catalog.unavailable`, e o front oferece o preenchimento manual. Uma linha de cache que não se traduz mais (contrato mudou, dado corrompido) conta como cache ausente.
 
 Tradução: "Civic Sedan LX 1.6 16V Mec. 4p" vira modelo `Civic` + versão `Sedan LX 1.6 16V Mec. 4p`; "1998 Gasolina" vira ano 1998 + combustível Gasolina; "32000" (zero km) vira ano nulo.
 
 ## 9. Endpoints
 
-Todos sob `/api`. A documentação interativa (`/scalar`) e o contrato (`/openapi/v1.json`) só existem fora de produção.
+Todos sob `/api`. A documentação interativa (`/scalar`) e o contrato (`/openapi/v1.json`) só existem fora de `Production` (o ambiente publicado hoje é `Staging`, então `/scalar` está visível).
 
 | Grupo | Rotas |
 |---|---|
@@ -224,10 +226,10 @@ Todos sob `/api`. A documentação interativa (`/scalar`) e o contrato (`/openap
 | Projeto | O que cobre | Testes |
 |---|---|---|
 | `Garage.Domain.Tests` | Regras puras (km, cronologia, status de lembrete, assinatura de arquivo, Money, Plate…) | 197 |
-| `Garage.Api.IntegrationTests` | API de ponta a ponta com **Postgres real em container** (Testcontainers) e `WebApplicationFactory`: auth, CSRF, rate limit, cada endpoint, catálogo FIPE (com FIPE falsa), vazamentos na página pública, dados de exemplo, hosting do front e o contrato OpenAPI | 225 |
-| `Garage.Infrastructure.Tests` | Relógio em America/Sao_Paulo, armazenamento em disco, cliente e tradutor da FIPE | 71 |
+| `Garage.Api.IntegrationTests` | API de ponta a ponta com **Postgres real em container** (Testcontainers) e `WebApplicationFactory`: auth, CSRF, rate limit, cada endpoint, catálogo FIPE (com FIPE falsa), vazamentos na página pública (inclusive o token nos logs), cabeçalhos de segurança e de cache, configuração validada na partida, dados de exemplo, hosting do front e o contrato OpenAPI | 250 |
+| `Garage.Infrastructure.Tests` | Relógio em America/Sao_Paulo, armazenamento em disco, reprocessamento de fotos (sRGB), cliente e tradutor da FIPE | 74 |
 | `Garage.ArchitectureTests` | Domínio não depende de nada, Application não depende das camadas externas, Infrastructure não depende da Api, handlers e decorators `internal sealed` | 4 |
-| **Back-end** | `dotnet build` com 0 avisos (o build trata aviso como erro) e `dotnet test` verde | **497** |
+| **Back-end** | `dotnet build` com 0 avisos (o build trata aviso como erro) e `dotnet test` verde | **525** |
 | Front (`frontend/`) | Vitest + Testing Library (jsdom): cliente HTTP e erros, autenticação, telas, formulários, FIPE, lembretes, compartilhamento, página pública | 231 (16 arquivos) |
 
 Rodar: `cd backend && dotnet test` (precisa do Docker ligado para os testes de integração) e `cd frontend && npm test`.
@@ -237,7 +239,7 @@ Rodar: `cd backend && dotnet test` (precisa do Docker ligado para os testes de i
 - **Vite + React + TypeScript**, Tailwind v4, React Router, TanStack Query, React Hook Form + Zod.
 - Tipos da API gerados do OpenAPI (`npm run gen:api` com openapi-typescript + openapi-fetch), então o front quebra na compilação se o contrato mudar. O script lê a API local (`http://localhost:5081`; `API_URL` troca a origem), que precisa estar com `Auth:AllowRegistration` ligado para a rota de cadastro entrar no documento.
 - Telas: `/login` e `/register` (só para visitantes; o cadastro só abre se `GET auth/config` diz `registrationEnabled`), painel `/` (lembretes vencidos e a vencer), `/vehicles/new` (seletor FIPE, com preenchimento manual de reserva), `/vehicles/:id` (abas Histórico, Lembretes e Compartilhar), `/vehicles/:id/edit`, formulário e detalhe de registro (peças e anexos) e a página pública `/p/:token`, fora do login e do layout.
-- **Hospedagem pela API** (`SpaHosting`): o build do Vite vai para `wwwroot` na imagem, no mesmo domínio (cookie e antiforgery sem CORS). Os arquivos estáticos saem antes da autenticação (sem login, antiforgery nem rate limit); `/assets/*`, com hash no nome, leva `Cache-Control: public,max-age=31536000,immutable`, e `index.html`, ícones e o fallback levam `no-cache`, para o deploy novo aparecer na hora. Qualquer caminho sem extensão de arquivo (`/vehicles/abc` com F5, `/p/token`) devolve o `index.html` e o React Router resolve. O fallback nunca responde por baixo de `/api`, `/openapi` e `/scalar` (continuam dando o 404 da API), nem a arquivo inexistente ou método diferente de GET. Sem `wwwroot/index.html` (testes, desenvolvimento com o servidor do Vite) ele nem é mapeado, e em nenhum caso entra no documento OpenAPI.
+- **Hospedagem pela API** (`SpaHosting`): o build do Vite vai para `wwwroot` na imagem, no mesmo domínio (cookie e antiforgery sem CORS). Os arquivos estáticos saem antes da autenticação (sem login, antiforgery nem rate limit); os arquivos de `/assets/*`, com hash no nome, levam `Cache-Control: public,max-age=31536000,immutable`, e `index.html`, ícones e o fallback levam `no-cache` (o fallback sempre, mesmo em `/assets/<sem extensão>`), para o deploy novo aparecer na hora. A página pública (`/p/...`) sai com `X-Robots-Tag: noindex`. Qualquer caminho sem extensão de arquivo (`/vehicles/abc` com F5, `/p/token`) devolve o `index.html` e o React Router resolve. O fallback nunca responde por baixo de `/api`, `/openapi` e `/scalar` (continuam dando o 404 da API), nem a arquivo inexistente ou método diferente de GET. Sem `wwwroot/index.html` (testes, desenvolvimento com o servidor do Vite) ele nem é mapeado, e em nenhum caso entra no documento OpenAPI.
 - Em desenvolvimento, `npm run dev` (Vite, :5173) faz proxy de `/api`, `/openapi` e `/scalar` para a API (:5081): o navegador fala com uma origem só, como em produção.
 - Botão "carregar dados de exemplo" (`POST /api/demo/seed`, só com `Demo:Enabled`): Civic EK 1998 com 6 registros (incluindo a modificação de coilover), lembretes em todos os estados e um link público; Gol 2019 com 2 registros.
 
@@ -245,7 +247,7 @@ Rodar: `cd backend && dotnet test` (precisa do Docker ligado para os testes de i
 
 | Item | Situação |
 |---|---|
-| Plano 1 — back-end (T1–T15: domínio, pipeline, auth, veículos, lembretes, registros, anexos, links públicos, catálogo FIPE, contrato OpenAPI e README) | Concluído: 497 testes verdes e build sem avisos |
+| Plano 1 — back-end (T1–T15: domínio, pipeline, auth, veículos, lembretes, registros, anexos, links públicos, catálogo FIPE, contrato OpenAPI e README) e as correções da revisão final | Concluído: 525 testes verdes e build sem avisos |
 | Plano 2 — front (login e cadastro, painel, veículos com FIPE, histórico e registros com peças e anexos, lembretes, compartilhamento, página pública, imagem única) | Concluído: 231 testes verdes |
 | Produção | `garagem.frauchesgabriel.work` roda a imagem única com o front e o back-end dos dois planos |
 | Pendências | Rotina de backup dos volumes `/data/attachments` e `/data/keys` (o agendado do Coolify cobre só o banco); testar uma restauração do Postgres antes de cadastrar dados reais; depois de criar a conta, manter `Auth:AllowRegistration` desligado (spec, seção 12) |
@@ -256,16 +258,18 @@ Lidas de `appsettings*.json`, user-secrets (desenvolvimento) ou variáveis de am
 
 | Chave | Padrão | Efeito |
 |---|---|---|
+| `ASPNETCORE_ENVIRONMENT` | `Production` | `/scalar` e `/openapi` só existem fora de `Production` (o ambiente publicado hoje é `Staging`, então `/scalar` está visível); HSTS só fora de `Development` |
 | `ConnectionStrings:Garage` | — | Conexão com o PostgreSQL |
-| `App:TimeZone` | `America/Sao_Paulo` | Fuso que define o "hoje" (`IAppClock`) |
+| `App:TimeZone` | `America/Sao_Paulo` | Fuso que define o "hoje" (`IAppClock`). Validado ao subir: fuso desconhecido, a API não sobe (a imagem precisa de ICU e tzdata) |
 | `Auth:AllowRegistration` | `false` | Mapeia `POST /api/auth/register`; desligado, a rota nem existe. Ligar só para criar a conta |
 | `Demo:Enabled` | `false` (`true` em Development) | Mapeia `POST /api/demo/seed` |
 | `DataProtection:KeysPath` | vazio | Pasta das chaves do Data Protection; vazia, nada é persistido. Produção: `/data/keys` |
-| `Storage:RootPath` | vazio | Pasta dos anexos; vazia, gravar ou ler anexo falha. Produção: `/data/attachments` |
+| `Storage:RootPath` | vazio | Pasta dos anexos, obrigatória: vazia, a API não sobe. Produção: `/data/attachments` |
 | `Fipe:BaseUrl` | `https://fipe.parallelum.com.br/api/v2/` | URL base da FIPE |
 | `Fipe:Token` | vazio | Token de assinatura (`X-Subscription-Token`): sem ele 500 consultas por dia, com o gratuito 1.000 |
-| `RateLimits:LoginPerMinute` | `5` | Login, por IP |
-| `RateLimits:PublicPerMinute` | `60` | Rotas públicas, por IP |
+| `RateLimits:LoginPerMinute` | `5` | Login e cadastro (a mesma cota), por IP |
+| `RateLimits:PublicPerMinute` | `60` | Visão pública (`GET public/{token}`), por IP |
+| `RateLimits:PublicPhotosPerMinute` | `600` | Fotos da página pública (`GET public/{token}/attachments/{attId}`), por IP |
 | `RateLimits:CatalogPerMinute` | `30` | Catálogo, por usuário |
 | `RateLimits:UploadsPerMinute` | `30` | Upload de anexos, por usuário |
 | `MIGRATE_ON_START` | `true` | Só no contêiner: `false` faz o entrypoint pular as migrations |

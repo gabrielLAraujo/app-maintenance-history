@@ -38,11 +38,21 @@ RUN dotnet ef migrations bundle \
       --output /app/efbundle --force
 
 # ---- runtime ----
+# A API precisa de ICU e tzdata: App:TimeZone (America/Sao_Paulo) e validado ao subir, e os precos da FIPE sao lidos com
+# a cultura pt-BR. A tag padrao aspnet:10.0 ja traz os dois; nao troque por uma variante alpine ou chiseled sem ICU/tzdata
+# (sem tzdata a API nao sobe; sem ICU a traducao da FIPE falha).
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
-# curl para o health check do Coolify; ICU e tzdata ja vem na imagem padrao (America/Sao_Paulo)
+# curl para o health check do Coolify
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl \
  && rm -rf /var/lib/apt/lists/*
+
+# Pastas dos volumes do Coolify (DataProtection__KeysPath e Storage__RootPath): criadas e entregues ao usuario nao-root
+# ANTES do USER, para que o volume nomeado novo herde o dono (Docker copia dono e permissoes da imagem na 1a montagem)
+# e a API consiga gravar as chaves e os anexos ja no primeiro start. Ficam antes dos COPY: mudar o codigo nao refaz
+# esta camada.
+RUN mkdir -p /data/keys /data/attachments \
+ && chown -R "$APP_UID:$APP_UID" /data
 
 WORKDIR /app
 COPY --from=build /app/publish .
@@ -50,12 +60,6 @@ COPY --from=build --chmod=755 /app/efbundle ./efbundle
 COPY --chmod=755 backend/docker-entrypoint.sh ./docker-entrypoint.sh
 # O front compilado vai para a webroot da API (SpaHosting serve os arquivos e cai no index.html nas rotas do app)
 COPY --from=frontend /src/frontend/dist ./wwwroot
-
-# Pastas dos volumes do Coolify (DataProtection__KeysPath e Storage__RootPath): criadas e entregues ao usuario nao-root
-# ANTES do USER, para que o volume nomeado novo herde o dono (Docker copia dono e permissoes da imagem na 1a montagem)
-# e a API consiga gravar as chaves e os anexos ja no primeiro start.
-RUN mkdir -p /data/keys /data/attachments \
- && chown -R "$APP_UID:$APP_UID" /data
 
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
