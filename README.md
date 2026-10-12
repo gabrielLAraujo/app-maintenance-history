@@ -16,6 +16,7 @@ Nasceu de uma necessidade real: documentar o meu Honda Civic EK 1998, em restaur
 - **Anexos**: fotos tiradas na hora pelo celular e PDFs. Tipo detectado pelos bytes, EXIF/GPS removidos, imagens convertidas para sRGB e redimensionadas.
 - **Lembretes** por km, por tempo ou "o que vier primeiro", com painel de vencidos e próximos.
 - **Link público** só de leitura, por lista de campos permitidos: custos e placa só quando o dono permite. Chassi, documentos, observações e lembretes nunca aparecem.
+- **Dados de exemplo** com um clique, para ver o app funcionando: um Civic EK com histórico completo e um Gol. As fotos vêm do Wikimedia Commons, com licenças livres; os créditos estão em [`CREDITS.md`](backend/src/Garage.Infrastructure/Demo/Assets/CREDITS.md).
 
 ## Stack
 
@@ -48,7 +49,7 @@ Os detalhes, com diagramas do caminho de uma requisição e do domínio, estão 
 
 ## Testes
 
-756 testes automatizados: 525 no back-end e 231 no front-end.
+773 testes automatizados: 542 no back-end e 231 no front-end.
 
 - **Domínio:** regras de km, cronologia, status de lembrete, assinatura de arquivo.
 - **Integração:** com Postgres real em container, cobre autenticação, CSRF, rate limit e cada endpoint.
