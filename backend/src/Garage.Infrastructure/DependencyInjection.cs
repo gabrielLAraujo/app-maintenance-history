@@ -1,5 +1,6 @@
 using Garage.Application.Abstractions.Ports;
 using Garage.Infrastructure.Access;
+using Garage.Infrastructure.Catalog;
 using Garage.Infrastructure.Identity;
 using Garage.Infrastructure.Persistence;
 using Garage.Infrastructure.Persistence.Repositories;
@@ -29,6 +30,9 @@ public static class DependencyInjection
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();
         services.AddScoped<IShareLinkRepository, ShareLinkRepository>();
         services.AddScoped<IVehicleAccess, VehicleAccess>();
+
+        services.AddFipeClient(config);
+        services.AddScoped<IVehicleCatalog, FipeVehicleCatalog>();
 
         services.AddOptions<StorageOptions>().Bind(config.GetSection(StorageOptions.SectionName));
         services.AddSingleton<IFileStorage, LocalDiskFileStorage>();

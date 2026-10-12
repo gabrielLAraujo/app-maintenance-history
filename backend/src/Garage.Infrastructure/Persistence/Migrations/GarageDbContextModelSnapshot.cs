@@ -361,6 +361,27 @@ namespace Garage.Infrastructure.Persistence.Migrations
                     b.ToTable("vehicles", (string)null);
                 });
 
+            modelBuilder.Entity("Garage.Infrastructure.Catalog.CatalogCacheEntry", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasColumnType("text")
+                        .HasColumnName("key");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fetched_at");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.HasKey("Key")
+                        .HasName("pk_catalog_cache");
+
+                    b.ToTable("catalog_cache", (string)null);
+                });
+
             modelBuilder.Entity("Garage.Infrastructure.Identity.AppUser", b =>
                 {
                     b.Property<Guid>("Id")

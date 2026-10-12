@@ -27,6 +27,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Mesmas fixtures dos testes do tradutor (uma única fonte): o fake da FIPE responde com elas. -->
+    <None Include="..\Garage.Infrastructure.Tests\Catalog\Fixtures\*.json"
+          Link="Catalog\Fixtures\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Garage.Api\Garage.Api.csproj" />
   </ItemGroup>
 
