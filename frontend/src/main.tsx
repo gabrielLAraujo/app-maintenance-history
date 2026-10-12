@@ -4,7 +4,6 @@ import { createRoot } from 'react-dom/client'
 import { createBrowserRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { shouldRetry } from './api/unwrap'
-import { AuthProvider } from './auth/AuthProvider'
 import './index.css'
 import { routes } from './routes'
 
@@ -13,12 +12,11 @@ const queryClient = new QueryClient({
 })
 const router = createBrowserRouter(routes)
 
+// A sessão (AuthProvider) vive dentro das rotas do app (AuthRoot), não aqui em cima: a página pública não a usa.
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   </StrictMode>,
 )

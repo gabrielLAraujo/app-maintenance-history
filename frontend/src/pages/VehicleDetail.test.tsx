@@ -62,6 +62,9 @@ function fakeApi(routes: Record<string, Handler> = {}) {
     'GET /api/reminders/due': () => json([]),
     [`GET /api/vehicles/${id}`]: () => json(civicDto),
     [`GET ${recordsPath}`]: () => json({ items: [oil, coilover], nextCursor: null }),
+    // As outras abas (a F5 trouxe os painéis reais): aqui só importa que existam e abram.
+    [`GET /api/vehicles/${id}/reminders`]: () => json([]),
+    [`GET /api/vehicles/${id}/share-links`]: () => json([]),
     ...routes,
   })
 }
@@ -269,7 +272,8 @@ describe('abas do veículo', () => {
 
     expect(await screen.findByRole('tab', { name: 'Compartilhar' })).toHaveAttribute('aria-selected', 'true')
     await router.navigate(`/vehicles/${id}?tab=nada`)
-    expect(await screen.findByRole('tab', { name: 'Histórico' })).toHaveAttribute('aria-selected', 'true')
+    // A navegação do router é uma transição do React: a tela troca de aba um instante depois de `navigate` voltar.
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Histórico' })).toHaveAttribute('aria-selected', 'true'))
   })
 
   it('setas, Home e End trocam de aba (e o foco vai junto); só a aba aberta entra na ordem do Tab', async () => {

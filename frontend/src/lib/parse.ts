@@ -15,6 +15,28 @@ export function parseKm(text: string): number | null {
   return km <= MAX_KM ? km : null
 }
 
+/** Faixas do intervalo de um lembrete no back-end. */
+export const MAX_INTERVAL_KM = 1_000_000
+export const MAX_INTERVAL_MONTHS = 240
+
+export const INVALID_INTERVAL_KM_MESSAGE = 'Informe o intervalo em km, de 1 a 1.000.000.'
+export const INVALID_INTERVAL_MONTHS_MESSAGE = 'Informe os meses, de 1 a 240.'
+
+/** Intervalo em km de um lembrete: as mesmas regras de dígitos do `parseKm`, mas de 1 a 1.000.000. */
+export function parseIntervalKm(text: string): number | null {
+  const km = parseKm(text)
+  return km !== null && km >= 1 && km <= MAX_INTERVAL_KM ? km : null
+}
+
+/** Intervalo em meses de um lembrete: só dígitos, de 1 a 240. */
+export function parseIntervalMonths(text: string): number | null {
+  const typed = text.trim()
+  if (!/^\d{1,3}$/.test(typed)) return null
+
+  const months = Number(typed)
+  return months >= 1 && months <= MAX_INTERVAL_MONTHS ? months : null
+}
+
 /** Teto do `Money` do back-end: R$ 9.999.999.999,99. */
 const MAX_MONEY = 9_999_999_999.99
 

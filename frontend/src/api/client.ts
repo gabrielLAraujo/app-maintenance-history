@@ -8,6 +8,10 @@ const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 // 401 esperado, não é sessão expirada: senha errada no login e "ninguém logado" no /me (a primeira visita).
 const EXPECTED_401 = new Set(['/api/auth/login', '/api/auth/me'])
 
+// As rotas públicas (/api/public/{token}...) são anônimas: um 401 ali nunca significa "sessão expirada" e não pode
+// mandar ninguém para o login (quem abre um link compartilhado nem tem conta).
+const PUBLIC_PREFIX = '/api/public/'
+
 // O token antiforgery é vinculado ao usuário: depois de abrir ou encerrar a sessão precisa ser buscado de novo,
 // senão a próxima escrita volta 400 auth.antiforgery_invalid.
 const IDENTITY_CHANGES = new Set(['/api/auth/login', '/api/auth/register', '/api/auth/logout'])
@@ -90,7 +94,7 @@ const middleware: Middleware = {
   },
 
   async onResponse({ response, schemaPath }) {
-    if (response.status === 401 && !EXPECTED_401.has(schemaPath)) unauthorizedHandler?.()
+    if (response.status === 401 && !EXPECTED_401.has(schemaPath) && !schemaPath.startsWith(PUBLIC_PREFIX)) unauthorizedHandler?.()
 
     // Termina antes de a chamada de login/cadastro/logout voltar para quem a fez: a próxima escrita já usa o token novo.
     if (response.ok && IDENTITY_CHANGES.has(schemaPath)) await ensureAntiforgery(true).catch(ignoreFailure)

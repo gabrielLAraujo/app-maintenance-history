@@ -92,3 +92,31 @@ export const formatInstantDate = (iso: string): string => {
   const instant = new Date(iso)
   return Number.isNaN(instant.getTime()) ? iso : instantFormat.format(instant)
 }
+
+const dayMonthFormat = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })
+const yearFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric' })
+
+/**
+ * Momento exato → "dd/MM" em Brasília. De outro ano vai completo (dd/MM/yyyy): "02/12" sem ano, lido em janeiro,
+ * pareceria recente. `now` existe para os testes.
+ */
+export const formatInstantDayMonth = (iso: string, now: Date = new Date()): string => {
+  const instant = new Date(iso)
+  if (Number.isNaN(instant.getTime())) return iso
+
+  return yearFormat.format(instant) === yearFormat.format(now) ? dayMonthFormat.format(instant) : instantFormat.format(instant)
+}
+
+const offsetFormat = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', timeZoneName: 'longOffset' })
+
+/**
+ * "2026-12-31" → o último segundo desse dia em Brasília como instante ISO com deslocamento
+ * ("2026-12-31T23:59:59-03:00"), o formato que a API aceita em `expiresAt`. O deslocamento vem do fuso (não é fixo),
+ * então acompanha uma eventual volta do horário de verão.
+ */
+export function endOfDayInSaoPaulo(date: string): string {
+  // Ao meio-dia UTC já é o mesmo dia civil em Brasília (UTC-2 a UTC-3), e longe de qualquer virada de horário.
+  const label = offsetFormat.formatToParts(new Date(`${date}T12:00:00Z`)).find((part) => part.type === 'timeZoneName')?.value
+  const offset = /^GMT([+-]\d{2}:\d{2})$/.exec(label ?? '')?.[1] ?? '-03:00'
+  return `${date}T23:59:59${offset}`
+}

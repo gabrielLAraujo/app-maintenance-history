@@ -13,6 +13,8 @@ import { formatInstantDate, toNumber } from '../lib/format'
 import { fuelLabels } from '../lib/labels'
 import { HistoryTab } from './vehicle/HistoryTab'
 import { OdometerDialog } from './vehicle/OdometerDialog'
+import { RemindersTab } from './vehicle/RemindersTab'
+import { ShareTab } from './vehicle/ShareTab'
 import { VehicleLoadError } from './vehicle/VehicleLoadError'
 
 const TABS = [
@@ -127,9 +129,16 @@ export function VehicleDetail() {
       <div className="mt-6">
         <Tabs label="Seções do veículo" tabs={TABS} value={tab} onChange={selectTab}>
           {tab === 'history' && <HistoryTab key={id} vehicleId={id} />}
-          {/* Provisório: a Task F5 troca estes dois painéis por RemindersTab e ShareTab. */}
-          {tab === 'reminders' && <p className="py-4 text-center text-slate-500">Os lembretes deste veículo chegam em seguida.</p>}
-          {tab === 'share' && <p className="py-4 text-center text-slate-500">O compartilhamento por link chega em seguida.</p>}
+          {tab === 'reminders' && (
+            <RemindersTab
+              key={id}
+              vehicleId={id}
+              currentKm={toNumber(current.currentOdometer) ?? 0}
+              odometerUpdatedAt={current.odometerUpdatedAt}
+              onUpdateKm={() => setOdometerDialog('update')}
+            />
+          )}
+          {tab === 'share' && <ShareTab key={id} vehicleId={id} />}
         </Tabs>
       </div>
 

@@ -11,7 +11,9 @@ const password = 'senha-com-10-chars'
 type Route = () => Response | Promise<Response>
 
 /** API falsa com uma sessão: login/cadastro abrem, logout fecha, e as rotas protegidas dão 401 sem ela. */
-function fakeApi(options: { signedIn?: boolean; registrationEnabled?: boolean; login?: Route; register?: Route } = {}) {
+function fakeApi(
+  options: { signedIn?: boolean; registrationEnabled?: boolean; login?: Route; register?: Route; extra?: Record<string, Route> } = {},
+) {
   const session = { signedIn: options.signedIn ?? false }
   const open: Route = () => {
     session.signedIn = true
@@ -36,6 +38,7 @@ function fakeApi(options: { signedIn?: boolean; registrationEnabled?: boolean; l
     },
     'GET /api/vehicles': () => (session.signedIn ? json([]) : problem(401, { title: 'Unauthorized' })),
     'GET /api/reminders/due': () => (session.signedIn ? json([]) : problem(401, { title: 'Unauthorized' })),
+    ...options.extra,
   })
 
   return { calls, session }
@@ -94,11 +97,23 @@ describe('rotas e sessão', () => {
     expect(await screen.findByRole('link', { name: 'Criar conta' })).toBeInTheDocument()
   })
 
-  it('a página pública abre sem login e sem ir para /login', async () => {
-    fakeApi()
-    renderApp('/p/um-token')
+  it('a página pública abre sem login, sem ir para /login e sem consultar a sessão', async () => {
+    const view = { make: 'Honda', model: 'Civic', version: null, generation: null, manufactureYear: 1998, modelYear: 1998, fuel: 'gasoline', nickname: null, plate: null, currentOdometer: 215000, includesCosts: false, records: [], nextCursor: null }
+    const { calls } = fakeApi({ extra: { 'GET /api/public/um-token': () => json(view) } })
+    const { router } = renderApp('/p/um-token')
 
-    expect(await screen.findByRole('heading', { name: 'Veículo compartilhado' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Honda Civic 1998' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/p/um-token')
+    // Nem /api/auth/me, nem antiforgery, nem nada logado: só a rota pública.
+    expect(calls.map((call) => call.path)).toEqual(['/api/public/um-token'])
+  })
+
+  it('o link público com 401 da API continua na página (nada de /login)', async () => {
+    fakeApi({ extra: { 'GET /api/public/um-token': () => problem(401, { title: 'Unauthorized' }) } })
+    const { router } = renderApp('/p/um-token')
+
+    expect(await screen.findByRole('heading', { name: 'Link não encontrado ou expirado' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/p/um-token')
   })
 
   it('rota desconhecida mostra "Página não encontrada"', async () => {

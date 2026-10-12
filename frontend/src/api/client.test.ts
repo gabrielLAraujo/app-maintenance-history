@@ -51,6 +51,18 @@ describe('401', () => {
     expect(handler).not.toHaveBeenCalled()
   })
 
+  it('401 numa rota pública (anônima) nunca é sessão expirada', async () => {
+    const { api, onUnauthorized } = await loadClient()
+    mockFetch({ 'GET /api/public/abc': () => problem(401, { title: 'Unauthorized' }) })
+    const handler = vi.fn()
+    onUnauthorized(handler)
+
+    const { response } = await api.GET('/api/public/{token}', { params: { path: { token: 'abc' } } })
+
+    expect(response.status).toBe(401)
+    expect(handler).not.toHaveBeenCalled()
+  })
+
   it('o handler registrado por último é o único chamado, e dá para cancelar o registro', async () => {
     const { api, onUnauthorized } = await loadClient()
     mockFetch({ 'GET /api/vehicles': () => problem(401, {}) })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isValidPlate, normalizePlate, parseKm, parseMoney, parseQuantity } from './parse'
+import { isValidPlate, normalizePlate, parseIntervalKm, parseIntervalMonths, parseKm, parseMoney, parseQuantity } from './parse'
 
 describe('parseKm', () => {
   it('lê números com ou sem ponto de milhar', () => {
@@ -90,5 +90,39 @@ describe('placa', () => {
     expect(isValidPlate('AB-12345')).toBe(false)
     expect(isValidPlate('ABCD123')).toBe(false)
     expect(isValidPlate('')).toBe(false)
+  })
+})
+
+describe('parseIntervalKm', () => {
+  it('lê de 1 a 1.000.000 km, com ou sem ponto de milhar', () => {
+    expect(parseIntervalKm('1')).toBe(1)
+    expect(parseIntervalKm('10000')).toBe(10000)
+    expect(parseIntervalKm('10.000')).toBe(10000)
+    expect(parseIntervalKm('1.000.000')).toBe(1_000_000)
+  })
+
+  it('recusa zero, acima do teto do back-end e o que parece decimal', () => {
+    expect(parseIntervalKm('0')).toBeNull()
+    expect(parseIntervalKm('1000001')).toBeNull()
+    expect(parseIntervalKm('187.45')).toBeNull()
+    expect(parseIntervalKm('10,5')).toBeNull()
+    expect(parseIntervalKm('')).toBeNull()
+  })
+})
+
+describe('parseIntervalMonths', () => {
+  it('lê de 1 a 240 meses', () => {
+    expect(parseIntervalMonths('1')).toBe(1)
+    expect(parseIntervalMonths(' 12 ')).toBe(12)
+    expect(parseIntervalMonths('240')).toBe(240)
+  })
+
+  it('recusa zero, acima de 240 e o que não é só dígitos', () => {
+    expect(parseIntervalMonths('0')).toBeNull()
+    expect(parseIntervalMonths('241')).toBeNull()
+    expect(parseIntervalMonths('1,5')).toBeNull()
+    expect(parseIntervalMonths('12 meses')).toBeNull()
+    expect(parseIntervalMonths('-3')).toBeNull()
+    expect(parseIntervalMonths('')).toBeNull()
   })
 })

@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  endOfDayInSaoPaulo,
   formatDate,
   formatFileSize,
   formatInstantDate,
+  formatInstantDayMonth,
   formatKm,
   formatKmRange,
   formatMoney,
@@ -141,5 +143,40 @@ describe('formatInstantDate', () => {
 
   it('devolve o texto original quando não é uma data', () => {
     expect(formatInstantDate('ontem')).toBe('ontem')
+  })
+})
+
+describe('formatInstantDayMonth', () => {
+  const now = new Date('2026-10-12T15:00:00Z')
+
+  it('no mesmo ano mostra só dd/MM, no dia de Brasília', () => {
+    expect(formatInstantDayMonth('2026-08-02T15:00:00+00:00', now)).toBe('02/08')
+    // 01:30 UTC de 03/08 ainda é noite de 02/08 em Brasília.
+    expect(formatInstantDayMonth('2026-08-03T01:30:00+00:00', now)).toBe('02/08')
+  })
+
+  it('de outro ano mostra o ano também (02/12 lido em janeiro pareceria recente)', () => {
+    expect(formatInstantDayMonth('2025-12-02T15:00:00+00:00', new Date('2026-01-10T15:00:00Z'))).toBe('02/12/2025')
+  })
+
+  it('devolve o texto original quando não é uma data', () => {
+    expect(formatInstantDayMonth('ontem', now)).toBe('ontem')
+  })
+})
+
+describe('endOfDayInSaoPaulo', () => {
+  it('é o último segundo do dia em Brasília, com o deslocamento (o formato do expiresAt)', () => {
+    expect(endOfDayInSaoPaulo('2026-12-31')).toBe('2026-12-31T23:59:59-03:00')
+    expect(endOfDayInSaoPaulo('2026-10-12')).toBe('2026-10-12T23:59:59-03:00')
+  })
+
+  it('o instante gerado cai no dia pedido em Brasília e já no dia seguinte em UTC', () => {
+    const instant = new Date(endOfDayInSaoPaulo('2026-12-31'))
+    expect(instant.toISOString()).toBe('2027-01-01T02:59:59.000Z')
+    expect(formatInstantDate(instant.toISOString())).toBe('31/12/2026')
+  })
+
+  it('segue o fuso da época: em 2018 Brasília tinha horário de verão (UTC-2)', () => {
+    expect(endOfDayInSaoPaulo('2018-01-15')).toBe('2018-01-15T23:59:59-02:00')
   })
 })

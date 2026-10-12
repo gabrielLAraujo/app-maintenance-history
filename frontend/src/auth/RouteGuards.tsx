@@ -1,6 +1,18 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { Spinner } from '../components/Spinner'
-import { useAuth } from './AuthProvider'
+import { AuthProvider, useAuth } from './AuthProvider'
+
+/**
+ * Abre a sessão (AuthProvider) para as telas do app. É a raiz das rotas de quem usa conta; a página pública
+ * (/p/:token) fica fora dela de propósito: ali não há sessão, então nada consulta /api/auth/* nem reage a 401.
+ */
+export function AuthRoot() {
+  return (
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
+  )
+}
 
 function PageLoading() {
   return (
