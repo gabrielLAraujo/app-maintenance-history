@@ -38,6 +38,8 @@ public static class DependencyInjection
         services.AddSingleton<IFileStorage, LocalDiskFileStorage>();
         services.AddSingleton<IImageProcessor, MagickImageProcessor>();
 
+        services.AddGarageDataProtection(config);
+
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
 

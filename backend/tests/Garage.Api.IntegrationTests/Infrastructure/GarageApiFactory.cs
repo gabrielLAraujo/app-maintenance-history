@@ -64,6 +64,7 @@ public sealed class GarageApiFactory : WebApplicationFactory<Program>, IAsyncLif
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Garage", _database.GetConnectionString());
         builder.UseSetting("Auth:AllowRegistration", "true");
+        builder.UseSetting("Demo:Enabled", "true");
         builder.UseSetting("Storage:RootPath", StoragePath);
         // Sem caminho na URL base: o FakeFipeHandler indexa as respostas pelo caminho relativo (cars/brands...).
         builder.UseSetting("Fipe:BaseUrl", "http://fipe.test/");

@@ -59,6 +59,7 @@ app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
 app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseSpaStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<AntiforgeryValidationMiddleware>();
@@ -68,14 +69,13 @@ if (!app.Environment.IsProduction())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
-    // Ate o front existir (Plano 2), a raiz leva para a documentacao da API.
-    app.MapGet("/", () => Results.Redirect("/scalar")).ExcludeFromDescription();
 }
 
 var api = app.MapGroup("/api").RequireAuthorization();
 api.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 api.MapHealthChecks("/health/ready").AllowAnonymous();
 app.MapEndpoints(api);
+app.MapSpaFallback();
 
 app.Run();
 
