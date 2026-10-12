@@ -5,7 +5,7 @@
 
 ## 1. Em uma frase
 
-Uma API .NET 10 que guarda o histórico de manutenções e modificações de cada veículo do usuário, com peças, custos, anexos (fotos e notas fiscais), lembretes por km ou tempo e um link público somente leitura para compartilhar o histórico. O front React (em construção) é servido pela própria API, no mesmo domínio.
+Uma API .NET 10 que guarda o histórico de manutenções e modificações de cada veículo do usuário, com peças, custos, anexos (fotos e notas fiscais), lembretes por km ou tempo e um link público somente leitura para compartilhar o histórico. O front React é servido pela própria API, no mesmo domínio, numa imagem única.
 
 ## 2. Visão de implantação
 
@@ -16,16 +16,17 @@ flowchart LR
     subgraph VPS[VPS Hostinger · Coolify]
         T[Traefik<br/>TLS Let's Encrypt] -->|HTTP :8080| API[Container Garage.Api<br/>.NET 10 + SPA React em wwwroot]
         API --> PG[(PostgreSQL 18)]
-        API --> VOL[/Volume /data/attachments<br/>Volume /data/keys/]
+        API --> VOL[/Volumes<br/>/data/attachments<br/>/data/keys/]
     end
     API -->|HTTPS + cache| FIPE[API FIPE<br/>fipe.parallelum.com.br]
     GH[GitHub · push na branch] -->|webhook| VPS
 ```
 
-- **Deploy:** cada push na branch dispara o build do `backend/Dockerfile` no Coolify. A imagem final roda `docker-entrypoint.sh`, que aplica as migrations (`efbundle`) e sobe a API.
+- **Deploy:** cada push na branch dispara o build no Coolify (`base_directory=/` e `dockerfile_location=/backend/Dockerfile`: o contexto de build é a raiz do repositório). A **imagem é única**, em três estágios: o Node compila o front (`npm ci` + `npm run build`), o SDK .NET publica a API e gera o bundle de migrations (`dotnet ef migrations bundle`), e a imagem final (`aspnet:10.0`, usuário não-root) leva a API, o `efbundle` e o front em `wwwroot`. O `docker-entrypoint.sh` aplica as migrations (`MIGRATE_ON_START=false` pula) e só então sobe a API; `GET /api/health` e `/api/health/ready` servem de health check.
 - **Proxy:** o Traefik termina o TLS. A API confia nos cabeçalhos `X-Forwarded-*` dele (esquema para cookie `Secure`, IP real para rate limit).
 - **Comando administrativo:** `docker exec … /app/docker-entrypoint.sh reset-password <email>` troca a senha sem subir o servidor.
-- **Dados persistentes:** banco no Postgres do Coolify (com backup agendado); arquivos e chaves de Data Protection em volumes (configuração entra no deploy do front).
+- **Dados persistentes:** o banco fica no Postgres do Coolify (com backup agendado) e a aplicação monta dois volumes: `/data/attachments` (`Storage:RootPath`, os arquivos dos anexos) e `/data/keys` (`DataProtection:KeysPath`, as chaves do Data Protection; sem elas cada deploy derrubaria as sessões e os tokens antiforgery). Os dois diretórios existem na imagem e pertencem ao usuário não-root, então o volume novo já nasce gravável. O backup agendado cobre só o banco: a rotina para os volumes é uma pendência (spec, seção 12.4).
+- **Configuração:** variáveis de ambiente da aplicação no Coolify; as chaves estão na seção 13.
 
 ## 3. Camadas (Clean Architecture)
 
@@ -67,7 +68,7 @@ sequenceDiagram
     participant D as Vehicle (domínio)
     participant U as UnitOfWork / EF Core
     B->>M: POST + cookie garage_auth + X-XSRF-TOKEN
-    M->>M: ForwardedHeaders · ExceptionHandler · Serilog · SecurityHeaders<br/>Authentication · Authorization · Antiforgery · RateLimiter
+    M->>M: ForwardedHeaders · ExceptionHandler · Serilog · SecurityHeaders · arquivos do front<br/>Authentication · Authorization · Antiforgery · RateLimiter
     M->>E: request autenticada
     E->>S: Send(UpdateOdometerCommand)
     S->>L: decorators (ordem fixa)
@@ -179,7 +180,7 @@ flowchart LR
 
 | Camada | Como |
 |---|---|
-| Login | ASP.NET Identity, cookie `garage_auth` (HttpOnly, Secure, SameSite=Strict, 14 dias renováveis com o uso). Cadastro de conta controlado por `Auth:AllowRegistration`. |
+| Login | ASP.NET Identity, cookie `garage_auth` (HttpOnly, Secure, SameSite=Strict, 14 dias renováveis com o uso). Senha de 10+ caracteres; 5 senhas erradas bloqueiam a conta por 15 minutos. Cadastro de conta controlado por `Auth:AllowRegistration` (desligado, a rota nem existe). As chaves do Data Protection ficam em `DataProtection:KeysPath` (volume) para a sessão sobreviver ao deploy. |
 | CSRF | Antiforgery: `GET /api/auth/antiforgery` grava o cookie `XSRF-TOKEN`; o front devolve no cabeçalho `X-XSRF-TOKEN` em toda escrita. |
 | Autorização | Todo `/api` exige login por padrão; só health, auth e rotas públicas são anônimas. Dono verificado em cada caso de uso. |
 | Rate limit | Políticas por IP (login, público) e por usuário (catálogo, uploads); excesso → 429 `rate_limit.exceeded`. |
@@ -199,7 +200,7 @@ Tradução: "Civic Sedan LX 1.6 16V Mec. 4p" vira modelo `Civic` + versão `Seda
 
 ## 9. Endpoints
 
-Todos sob `/api`. A documentação interativa fica em `/scalar` (fora de produção) e o contrato em `/openapi/v1.json`.
+Todos sob `/api`. A documentação interativa (`/scalar`) e o contrato (`/openapi/v1.json`) só existem fora de produção.
 
 | Grupo | Rotas |
 |---|---|
@@ -211,32 +212,60 @@ Todos sob `/api`. A documentação interativa fica em `/scalar` (fora de produç
 | Compartilhar | `GET/POST vehicles/{id}/share-links` · `DELETE vehicles/{id}/share-links/{linkId}` |
 | Público | `GET public/{token}` · `GET public/{token}/attachments/{attId}` |
 | Catálogo | `GET catalog/{type}/makes` · `…/makes/{m}/models` · `…/models/{mo}/years` · `…/years/{y}` |
+| Demonstração | `POST demo/seed` (só com `Demo:Enabled`; só para contas sem veículos, senão 409 `demo.already_has_data`) |
 | Saúde | `GET health` (vivo) · `GET health/ready` (banco ok) |
+
+- `POST auth/register` e `POST demo/seed` só são mapeados com `Auth:AllowRegistration` e `Demo:Enabled` ligados; desligados, as rotas nem existem (404).
+- Fora de `/api`, `/openapi` e `/scalar`, a API devolve o `index.html` do front (seção 11); a SPA nunca responde por baixo de `/api`.
+- **Contrato:** todo endpoint declara `.WithName`, `.WithTags`, `.Produces<T>()` do sucesso e `.ProducesProblem()` de cada erro. O `OpenApiContractTests` reprova o endpoint que ficar sem nome, tag ou resposta de sucesso com schema (os de arquivo declaram só o tipo de mídia; os 204 não têm corpo). O front gera os tipos desse documento.
 
 ## 10. Testes
 
-| Projeto | O que cobre | Qtde (após T13) |
+| Projeto | O que cobre | Testes |
 |---|---|---|
 | `Garage.Domain.Tests` | Regras puras (km, cronologia, status de lembrete, assinatura de arquivo, Money, Plate…) | 197 |
-| `Garage.Api.IntegrationTests` | API de ponta a ponta com **Postgres real em container** (Testcontainers) e `WebApplicationFactory`: auth, CSRF, rate limit, cada endpoint, vazamentos na página pública | 163 |
-| `Garage.Infrastructure.Tests` | Relógio em America/Sao_Paulo, armazenamento em disco (e cliente/tradutor FIPE a partir da T14) | 8 |
+| `Garage.Api.IntegrationTests` | API de ponta a ponta com **Postgres real em container** (Testcontainers) e `WebApplicationFactory`: auth, CSRF, rate limit, cada endpoint, catálogo FIPE (com FIPE falsa), vazamentos na página pública, dados de exemplo, hosting do front e o contrato OpenAPI | 225 |
+| `Garage.Infrastructure.Tests` | Relógio em America/Sao_Paulo, armazenamento em disco, cliente e tradutor da FIPE | 71 |
 | `Garage.ArchitectureTests` | Domínio não depende de nada, Application não depende das camadas externas, Infrastructure não depende da Api, handlers e decorators `internal sealed` | 4 |
+| **Back-end** | `dotnet build` com 0 avisos (o build trata aviso como erro) e `dotnet test` verde | **497** |
+| Front (`frontend/`) | Vitest + Testing Library (jsdom): cliente HTTP e erros, autenticação, telas, formulários, FIPE, lembretes, compartilhamento, página pública | 231 (16 arquivos) |
 
-Rodar: `cd backend && dotnet test` (precisa do Docker ligado para os testes de integração).
+Rodar: `cd backend && dotnet test` (precisa do Docker ligado para os testes de integração) e `cd frontend && npm test`.
 
-## 11. Front-end (Plano 2, em construção)
+## 11. Front-end
 
 - **Vite + React + TypeScript**, Tailwind v4, React Router, TanStack Query, React Hook Form + Zod.
-- Tipos da API gerados do OpenAPI (`npm run gen:api` com openapi-typescript + openapi-fetch), então o front quebra na compilação se o contrato mudar.
-- Servido pela própria API (`wwwroot`, fallback da SPA fora de `/api`): mesmo domínio, cookie e antiforgery sem CORS.
+- Tipos da API gerados do OpenAPI (`npm run gen:api` com openapi-typescript + openapi-fetch), então o front quebra na compilação se o contrato mudar. O script lê a API local (`http://localhost:5081`; `API_URL` troca a origem), que precisa estar com `Auth:AllowRegistration` ligado para a rota de cadastro entrar no documento.
+- Telas: `/login` e `/register` (só para visitantes; o cadastro só abre se `GET auth/config` diz `registrationEnabled`), painel `/` (lembretes vencidos e a vencer), `/vehicles/new` (seletor FIPE, com preenchimento manual de reserva), `/vehicles/:id` (abas Histórico, Lembretes e Compartilhar), `/vehicles/:id/edit`, formulário e detalhe de registro (peças e anexos) e a página pública `/p/:token`, fora do login e do layout.
+- **Hospedagem pela API** (`SpaHosting`): o build do Vite vai para `wwwroot` na imagem, no mesmo domínio (cookie e antiforgery sem CORS). Os arquivos estáticos saem antes da autenticação (sem login, antiforgery nem rate limit); `/assets/*`, com hash no nome, leva `Cache-Control: public,max-age=31536000,immutable`, e `index.html`, ícones e o fallback levam `no-cache`, para o deploy novo aparecer na hora. Qualquer caminho sem extensão de arquivo (`/vehicles/abc` com F5, `/p/token`) devolve o `index.html` e o React Router resolve. O fallback nunca responde por baixo de `/api`, `/openapi` e `/scalar` (continuam dando o 404 da API), nem a arquivo inexistente ou método diferente de GET. Sem `wwwroot/index.html` (testes, desenvolvimento com o servidor do Vite) ele nem é mapeado, e em nenhum caso entra no documento OpenAPI.
+- Em desenvolvimento, `npm run dev` (Vite, :5173) faz proxy de `/api`, `/openapi` e `/scalar` para a API (:5081): o navegador fala com uma origem só, como em produção.
 - Botão "carregar dados de exemplo" (`POST /api/demo/seed`, só com `Demo:Enabled`): Civic EK 1998 com 6 registros (incluindo a modificação de coilover), lembretes em todos os estados e um link público; Gol 2019 com 2 registros.
 
 ## 12. Estado atual
 
 | Item | Situação |
 |---|---|
-| Back-end T1–T13 (domínio, pipeline, auth, veículos, lembretes, registros, anexos, links públicos) | Pronto e testado no PC (372 testes), ainda não enviado |
-| T14 – catálogo FIPE | Em andamento |
-| T15 – contrato OpenAPI + README | Pendente |
-| Front (F1–F6) | Pendente — primeiro marco: login + painel + veículos no ar |
-| Produção | `garagem.frauchesgabriel.work` com a versão de infraestrutura (health + documentação) |
+| Plano 1 — back-end (T1–T15: domínio, pipeline, auth, veículos, lembretes, registros, anexos, links públicos, catálogo FIPE, contrato OpenAPI e README) | Concluído: 497 testes verdes e build sem avisos |
+| Plano 2 — front (login e cadastro, painel, veículos com FIPE, histórico e registros com peças e anexos, lembretes, compartilhamento, página pública, imagem única) | Concluído: 231 testes verdes |
+| Produção | `garagem.frauchesgabriel.work` roda a imagem única com o front e o back-end dos dois planos |
+| Pendências | Rotina de backup dos volumes `/data/attachments` e `/data/keys` (o agendado do Coolify cobre só o banco); testar uma restauração do Postgres antes de cadastrar dados reais; depois de criar a conta, manter `Auth:AllowRegistration` desligado (spec, seção 12) |
+
+## 13. Configurações
+
+Lidas de `appsettings*.json`, user-secrets (desenvolvimento) ou variáveis de ambiente (produção), onde `:` vira `__` (`Fipe:BaseUrl` → `Fipe__BaseUrl`). O passo a passo local está em `backend/README.md`.
+
+| Chave | Padrão | Efeito |
+|---|---|---|
+| `ConnectionStrings:Garage` | — | Conexão com o PostgreSQL |
+| `App:TimeZone` | `America/Sao_Paulo` | Fuso que define o "hoje" (`IAppClock`) |
+| `Auth:AllowRegistration` | `false` | Mapeia `POST /api/auth/register`; desligado, a rota nem existe. Ligar só para criar a conta |
+| `Demo:Enabled` | `false` (`true` em Development) | Mapeia `POST /api/demo/seed` |
+| `DataProtection:KeysPath` | vazio | Pasta das chaves do Data Protection; vazia, nada é persistido. Produção: `/data/keys` |
+| `Storage:RootPath` | vazio | Pasta dos anexos; vazia, gravar ou ler anexo falha. Produção: `/data/attachments` |
+| `Fipe:BaseUrl` | `https://fipe.parallelum.com.br/api/v2/` | URL base da FIPE |
+| `Fipe:Token` | vazio | Token de assinatura (`X-Subscription-Token`): sem ele 500 consultas por dia, com o gratuito 1.000 |
+| `RateLimits:LoginPerMinute` | `5` | Login, por IP |
+| `RateLimits:PublicPerMinute` | `60` | Rotas públicas, por IP |
+| `RateLimits:CatalogPerMinute` | `30` | Catálogo, por usuário |
+| `RateLimits:UploadsPerMinute` | `30` | Upload de anexos, por usuário |
+| `MIGRATE_ON_START` | `true` | Só no contêiner: `false` faz o entrypoint pular as migrations |
