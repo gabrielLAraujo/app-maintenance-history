@@ -5,6 +5,8 @@ import { Dashboard } from './pages/Dashboard'
 import { Login } from './pages/Login'
 import { NotFound } from './pages/NotFound'
 import { PublicVehicle } from './pages/PublicVehicle'
+import { RecordDetail } from './pages/RecordDetail'
+import { RecordForm } from './pages/RecordForm'
 import { Register } from './pages/Register'
 import { VehicleDetail } from './pages/VehicleDetail'
 import { VehicleEdit } from './pages/VehicleEdit'
@@ -35,6 +37,9 @@ export const routes: RouteObject[] = [
           { path: '/vehicles/new', element: <VehicleNew /> },
           { path: '/vehicles/:id', element: <VehicleDetail /> },
           { path: '/vehicles/:id/edit', element: <VehicleEdit /> },
+          { path: '/vehicles/:id/records/new', element: <RecordForm /> },
+          { path: '/vehicles/:id/records/:recordId', element: <RecordDetail /> },
+          { path: '/vehicles/:id/records/:recordId/edit', element: <RecordForm /> },
         ],
       },
     ],

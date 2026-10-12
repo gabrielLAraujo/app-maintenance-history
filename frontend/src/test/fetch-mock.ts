@@ -40,12 +40,15 @@ export function mockFetch(routes: Record<string, Handler>) {
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
     const url = new URL(request.url)
+    // Multipart com arquivo do jsdom: o undici não consegue ler o File de volta e `text()` trava para sempre. O
+    // cabeçalho (com o boundary) continua valendo; o conteúdo, o teste confere por `FormData.append`.
+    const multipart = request.headers.get('Content-Type')?.startsWith('multipart/form-data') ?? false
     const call: Call = {
       method: request.method,
       path: url.pathname + url.search,
       headers: request.headers,
       credentials: request.credentials,
-      body: await request.clone().text(),
+      body: multipart ? '[multipart/form-data]' : await request.clone().text(),
     }
     calls.push(call)
 

@@ -22,6 +22,53 @@ export const formatKm = (km: number | null | undefined): string =>
 export const formatMoney = (value: number | null | undefined): string =>
   hasValue(value) ? moneyFormat.format(value).replace(/ /g, ' ') : EMPTY
 
+/**
+ * A faixa de km que o histórico aceita num registro (`record.odometer_out_of_order`): `maxKmBefore` é a maior km dos
+ * registros anteriores (o piso) e `minKmAfter`, a menor km dos posteriores (o teto). Qualquer um pode faltar.
+ */
+export function formatKmRange(
+  maxKmBefore: number | string | null | undefined,
+  minKmAfter: number | string | null | undefined,
+): string | null {
+  const floor = toNumber(maxKmBefore)
+  const ceiling = toNumber(minKmAfter)
+  const plain = (km: number) => kmFormat.format(km)
+
+  if (floor !== null && ceiling !== null) return `Entre ${plain(floor)} e ${plain(ceiling)} km`
+  if (floor !== null) return `Acima de ${plain(floor)} km`
+  if (ceiling !== null) return `Abaixo de ${plain(ceiling)} km`
+  return null
+}
+
+const moneyInputFormat = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const quantityFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3, useGrouping: false })
+
+/** Valor para um campo de texto de reais, sem o "R$": 4250 → "4.250,00" (o `parseMoney` lê de volta). */
+export const formatMoneyInput = (value: number): string => moneyInputFormat.format(value)
+
+/** Quantidade para um campo de texto: 3.5 → "3,5", 4 → "4" (o `parseQuantity` lê de volta). */
+export const formatQuantity = (value: number): string => quantityFormat.format(value)
+
+/** Tamanho de arquivo para a tela: 850 KB, 1,2 MB. */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(bytes / (1024 * 1024))} MB`
+}
+
+const todayParts = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Sao_Paulo',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+/** O "hoje" da API (fuso America/Sao_Paulo) como yyyy-MM-dd, o formato do campo de data. */
+export function todayInSaoPaulo(): string {
+  const parts = todayParts.formatToParts(new Date())
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})/
 
 /**

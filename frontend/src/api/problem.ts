@@ -34,7 +34,7 @@ const defaultMessage = (status: number): string => {
 export const problemMessage = (problem: Problem): string => problem.detail || defaultMessage(problem.status)
 
 // A API manda as chaves em camelCase por segmento ("parts[0].name"); o react-hook-form usa "parts.0.name".
-const toFieldPath = (key: string): string => key.replace(/\[(\d+)\]/g, '.$1')
+export const toFieldPath = (key: string): string => key.replace(/\[(\d+)\]/g, '.$1')
 
 /**
  * Leva os erros de validação (`errors`, por campo) para o formulário com `setError`.

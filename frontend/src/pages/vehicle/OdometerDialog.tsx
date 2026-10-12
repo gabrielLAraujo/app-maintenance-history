@@ -21,6 +21,8 @@ type Values = z.infer<typeof schema>
 type Props = {
   vehicleId: string
   currentKm: number
+  /** Abre já no modo de correção (o link "Corrigir km digitada errado" do cabeçalho do veículo). */
+  startCorrecting?: boolean
   onClose: () => void
 }
 
@@ -28,8 +30,8 @@ type Props = {
  * Atualizar a km do veículo (só aumenta) e, a partir dela, corrigir um erro de digitação (pode diminuir, mas não abaixo
  * da maior km do histórico). A API recusa o que não vale com 422 e a mensagem pronta aparece no formulário.
  */
-export function OdometerDialog({ vehicleId, currentKm, onClose }: Props) {
-  const [correcting, setCorrecting] = useState(false)
+export function OdometerDialog({ vehicleId, currentKm, startCorrecting = false, onClose }: Props) {
+  const [correcting, setCorrecting] = useState(startCorrecting)
   const [formError, setFormError] = useState<string | null>(null)
   const update = useUpdateOdometer()
   const correct = useCorrectOdometer()

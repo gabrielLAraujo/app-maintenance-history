@@ -1,5 +1,16 @@
-import { describe, expect, it } from 'vitest'
-import { formatDate, formatInstantDate, formatKm, formatMoney, toNumber } from './format'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  formatDate,
+  formatFileSize,
+  formatInstantDate,
+  formatKm,
+  formatKmRange,
+  formatMoney,
+  formatMoneyInput,
+  formatQuantity,
+  toNumber,
+  todayInSaoPaulo,
+} from './format'
 
 describe('toNumber', () => {
   it('aceita número e texto numérico (o OpenAPI do .NET admite os dois)', () => {
@@ -45,6 +56,64 @@ describe('formatMoney', () => {
   it('mostra traço quando não há valor', () => {
     expect(formatMoney(null)).toBe('—')
     expect(formatMoney(undefined)).toBe('—')
+  })
+})
+
+describe('formatKmRange', () => {
+  it('mostra a faixa quando há piso e teto', () => {
+    expect(formatKmRange(80000, 90000)).toBe('Entre 80.000 e 90.000 km')
+    expect(formatKmRange('80000', '90000')).toBe('Entre 80.000 e 90.000 km')
+  })
+
+  it('mostra só o lado que existe', () => {
+    expect(formatKmRange(80000, null)).toBe('Acima de 80.000 km')
+    expect(formatKmRange(null, 90000)).toBe('Abaixo de 90.000 km')
+    expect(formatKmRange(0, undefined)).toBe('Acima de 0 km')
+  })
+
+  it('sem nenhum dos dois, não há faixa para mostrar', () => {
+    expect(formatKmRange(null, null)).toBeNull()
+    expect(formatKmRange(undefined, '')).toBeNull()
+  })
+})
+
+describe('campos de texto de valor e quantidade', () => {
+  it('formatMoneyInput escreve com duas casas e ponto de milhar, sem R$', () => {
+    expect(formatMoneyInput(4250)).toBe('4.250,00')
+    expect(formatMoneyInput(45.9)).toBe('45,90')
+    expect(formatMoneyInput(0)).toBe('0,00')
+  })
+
+  it('formatQuantity usa vírgula e não agrupa milhar', () => {
+    expect(formatQuantity(3.5)).toBe('3,5')
+    expect(formatQuantity(4)).toBe('4')
+    expect(formatQuantity(0.125)).toBe('0,125')
+    expect(formatQuantity(12000)).toBe('12000')
+  })
+})
+
+describe('formatFileSize', () => {
+  it('mostra KB abaixo de 1 MB e MB com uma casa acima', () => {
+    expect(formatFileSize(850 * 1024)).toBe('850 KB')
+    expect(formatFileSize(10)).toBe('1 KB')
+    expect(formatFileSize(1.25 * 1024 * 1024)).toBe('1,3 MB')
+    expect(formatFileSize(10 * 1024 * 1024)).toBe('10 MB')
+  })
+})
+
+describe('todayInSaoPaulo', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('é o dia em Brasília, não o do UTC', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    // 01:30 UTC de 12/10 ainda é noite de 11/10 em Brasília.
+    vi.setSystemTime(new Date('2026-10-12T01:30:00Z'))
+    expect(todayInSaoPaulo()).toBe('2026-10-11')
+
+    vi.setSystemTime(new Date('2026-10-12T15:00:00Z'))
+    expect(todayInSaoPaulo()).toBe('2026-10-12')
   })
 })
 

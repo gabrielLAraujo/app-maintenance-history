@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isValidPlate, normalizePlate, parseKm } from './parse'
+import { isValidPlate, normalizePlate, parseKm, parseMoney, parseQuantity } from './parse'
 
 describe('parseKm', () => {
   it('lê números com ou sem ponto de milhar', () => {
@@ -26,6 +26,52 @@ describe('parseKm', () => {
     expect(parseKm('1.5')).toBeNull()
     expect(parseKm('1234.567')).toBeNull()
     expect(parseKm('.500')).toBeNull()
+  })
+})
+
+describe('parseMoney', () => {
+  it('lê valores em pt-BR: vírgula nos centavos e ponto só de milhar', () => {
+    expect(parseMoney('150')).toBe(150)
+    expect(parseMoney('150,5')).toBe(150.5)
+    expect(parseMoney('45,90')).toBe(45.9)
+    expect(parseMoney('1.234,56')).toBe(1234.56)
+    expect(parseMoney('1.234')).toBe(1234)
+    expect(parseMoney('0,05')).toBe(0.05)
+    expect(parseMoney(' R$ 1.038,00 ')).toBe(1038)
+  })
+
+  it('aceita até R$ 9.999.999.999,99, como o back-end', () => {
+    expect(parseMoney('9.999.999.999,99')).toBe(9_999_999_999.99)
+    expect(parseMoney('10.000.000.000')).toBeNull()
+  })
+
+  it('recusa o ponto que parece decimal (o valor sairia 100 vezes maior), mais de 2 casas, sinal e letras', () => {
+    expect(parseMoney('150.50')).toBeNull()
+    expect(parseMoney('1.5')).toBeNull()
+    expect(parseMoney('150,555')).toBeNull()
+    expect(parseMoney('-10')).toBeNull()
+    expect(parseMoney('dez reais')).toBeNull()
+    expect(parseMoney('')).toBeNull()
+    expect(parseMoney(',50')).toBeNull()
+  })
+})
+
+describe('parseQuantity', () => {
+  it('lê inteiros e decimais com vírgula, até 3 casas', () => {
+    expect(parseQuantity('4')).toBe(4)
+    expect(parseQuantity('3,5')).toBe(3.5)
+    expect(parseQuantity('0,125')).toBe(0.125)
+    expect(parseQuantity('99999,999')).toBe(99999.999)
+  })
+
+  it('recusa zero, acima do teto, 4 casas, ponto, sinal e vazio', () => {
+    expect(parseQuantity('0')).toBeNull()
+    expect(parseQuantity('0,000')).toBeNull()
+    expect(parseQuantity('100000')).toBeNull()
+    expect(parseQuantity('1,2345')).toBeNull()
+    expect(parseQuantity('3.5')).toBeNull()
+    expect(parseQuantity('-1')).toBeNull()
+    expect(parseQuantity('')).toBeNull()
   })
 })
 

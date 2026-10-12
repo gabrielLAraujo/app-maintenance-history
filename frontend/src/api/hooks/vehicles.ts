@@ -36,6 +36,20 @@ export function useVehicle(id: string) {
   })
 }
 
+/**
+ * Valor de tabela da FIPE de um veículo vinculado. `enabled` só para quem tem `catalog` (senão a API responde 404
+ * `vehicle.catalog_not_linked`). Sem `retry`: a API já tenta a FIPE mais de uma vez antes de responder 503.
+ */
+export function useFipePrice(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...vehicleKeys.one(id), 'fipe-price'] as const,
+    queryFn: () => unwrap(api.GET('/api/vehicles/{vehicleId}/fipe-price', { params: { path: { vehicleId: id } } })),
+    enabled,
+    staleTime: 30 * 60_000,
+    retry: false,
+  })
+}
+
 /** A lista do painel e os lembretes dependem dos veículos (nome, km): mexeu num veículo, os dois ficam velhos. */
 export const invalidateVehicleLists = (queryClient: QueryClient) =>
   Promise.all([
@@ -43,7 +57,8 @@ export const invalidateVehicleLists = (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: dueRemindersKey }),
   ])
 
-const invalidateVehicle = (queryClient: QueryClient, id: string) =>
+/** O veículo e tudo que é dele (registros, lembretes, valor FIPE), mais a lista do painel e os lembretes vencidos. */
+export const invalidateVehicle = (queryClient: QueryClient, id: string) =>
   Promise.all([queryClient.invalidateQueries({ queryKey: vehicleKeys.one(id) }), invalidateVehicleLists(queryClient)])
 
 /** Edição concorrente (409): o dado em tela está velho; busca de novo para a tela mostrar o que há no servidor. */

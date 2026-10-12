@@ -36,6 +36,8 @@ function fakeApi(routes: Record<string, Handler> = {}) {
     'GET /api/vehicles': () => json([summary]),
     'GET /api/reminders/due': () => json([]),
     [`GET /api/vehicles/${id}`]: () => json(civicDto),
+    // A tela do veículo também abre o histórico (aqui vazio).
+    [`GET /api/vehicles/${id}/records`]: () => json({ items: [], nextCursor: null }),
     ...routes,
   })
 }

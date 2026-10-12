@@ -55,6 +55,9 @@ function fakeApi(routes: Record<string, Handler> = {}) {
     ...signedInRoutes(),
     'GET /api/vehicles': () => json([]),
     'GET /api/reminders/due': () => json([]),
+    // A tela do veículo (para onde o cadastro leva) abre o histórico e, se há vínculo FIPE, o valor de tabela.
+    [`GET /api/vehicles/${id}/records`]: () => json({ items: [], nextCursor: null }),
+    [`GET /api/vehicles/${id}/fipe-price`]: () => json({ price: 23456.78, referenceMonth: 'outubro de 2026' }),
     ...routes,
   })
 }
