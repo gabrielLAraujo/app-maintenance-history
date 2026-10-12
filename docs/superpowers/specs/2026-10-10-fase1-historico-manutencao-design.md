@@ -69,8 +69,8 @@ Tudo das fases 2 e 3, e também: notificações por e-mail/push, troca de painel
 | Front-end | React + Vite + TypeScript, React Router, TanStack Query, React Hook Form + Zod, shadcn/ui + Tailwind |
 | Cliente da API | `openapi-typescript` + `openapi-fetch` (tipos gerados do OpenAPI) |
 | Testes | xUnit, Testcontainers (Postgres), WebApplicationFactory, NetArchTest, Playwright |
-| Infra | Docker Compose, Caddy (HTTPS automático), VPS Hostinger |
-| Backup | `pg_dump` + `tar` + rclone para armazenamento externo |
+| Infra | Coolify (Traefik com HTTPS automático) na VPS Hostinger; imagem Docker única (API + front) |
+| Backup | Backup agendado do Postgres pelo Coolify, com destino S3 fora da VPS |
 
 ---
 
@@ -414,7 +414,7 @@ O domínio e o front **não conhecem** o formato da FIPE.
 ### 7.3 Administração
 
 Comando de linha no próprio executável da API para resetar senha (não há e-mail no MVP):
-`docker compose exec api dotnet Garage.Api.dll reset-password <email>` → gera uma senha temporária e a imprime no console.
+`/app/docker-entrypoint.sh reset-password <email>` (no terminal do contêiner da aplicação no Coolify) → gera uma senha temporária e a imprime no console.
 
 ---
 
@@ -521,7 +521,7 @@ Comando de linha no próprio executável da API para resetar senha (não há e-m
 
 ### 10.6 Infra
 - Postgres sem porta exposta; firewall da VPS libera só 22, 80 e 443.
-- Segredos só no `.env` da VPS (fora do git); repositório tem `.env.example`.
+- Segredos só nas variáveis de ambiente do Coolify (fora do git); o repositório só tem `frontend/.env.example`, sem segredos.
 - Container da API roda como usuário não-root.
 
 ---
@@ -546,33 +546,47 @@ Sem meta de cobertura: testa-se o que pode quebrar sem ninguém perceber.
 
 ```
 APP_MAINETENCE/
-  backend/      solução .NET (seção 5.1)
+  backend/      solução .NET (seção 5.1), Dockerfile e docker-entrypoint.sh da imagem única
   frontend/     app Vite + e2e/ (Playwright)
-  deploy/       docker-compose.yml, Caddyfile, deploy.sh, backup.sh, restore.sh, .env.example
   docs/         specs e planos
 ```
 
-### 12.2 Docker Compose (VPS Hostinger)
+### 12.2 Coolify (VPS Hostinger)
 
-| Serviço | Papel |
+A publicação é feita pelo **Coolify**, que já roda na VPS. Isso substitui o Docker Compose, o Caddy e os scripts `deploy.sh`/`backup.sh`/`restore.sh` do desenho original.
+
+| Recurso | Papel |
 |---|---|
-| `caddy` | HTTPS automático (Let's Encrypt) no domínio de `APP_DOMAIN`; serve o build do React; `/api/*` → `api` |
-| `api` | .NET 10, imagem enxuta, usuário não-root; `depends_on` o `migrator` concluído |
-| `migrator` | executa o *migrations bundle* do EF uma vez e sai (migrations não rodam no startup da API) |
-| `db` | Postgres 18, sem porta publicada |
+| Aplicação `garage-api` | Build do `backend/Dockerfile` com `base_directory=/` (o contexto é a raiz do repositório) e `dockerfile_location=/backend/Dockerfile`. **Imagem única**: um estágio Node compila o front (`npm ci` + `npm run build`), um estágio .NET publica a API e gera o *migrations bundle* do EF, e a imagem final (usuário não-root, `$APP_UID` 1654) serve o `dist/` do front de `wwwroot` pela própria API, no mesmo domínio (sem CORS). O entrypoint aplica as migrations (`efbundle`) e só então sobe a API; a API em si não migra |
+| Traefik (do Coolify) | HTTPS automático (Let's Encrypt) no domínio da aplicação; termina o TLS e manda `X-Forwarded-Proto`/`X-Forwarded-For`, nos quais a API confia (cookie `Secure`, rate limit por IP) |
+| Postgres 18 (recurso do Coolify) | Sem porta publicada; a aplicação o alcança pela rede interna do Coolify |
 
-Volumes: `pgdata`, `attachments`, `caddy_data`. Logs do Docker com rotação (`max-size`).
+Volumes persistentes da aplicação (os diretórios existem na imagem e pertencem ao usuário não-root, então o volume novo já nasce gravável):
 
-Pré-requisito: um domínio ou subdomínio apontando para o IP da VPS.
+| Montagem | Conteúdo |
+|---|---|
+| `/data/keys` | Chaves do Data Protection. Sem elas cada deploy invalida o cookie de sessão `garage_auth` e os tokens antiforgery |
+| `/data/attachments` | Arquivos dos anexos (`IFileStorage` local) |
+
+Variáveis de ambiente da aplicação:
+
+| Variável | Valor |
+|---|---|
+| `ConnectionStrings__Garage` | String de conexão do recurso Postgres do Coolify |
+| `DataProtection__KeysPath` | `/data/keys` |
+| `Storage__RootPath` | `/data/attachments` |
+| `Demo__Enabled` | `true` enquanto os dados de exemplo forem úteis (padrão `false`: a rota `/api/demo/seed` nem existe) |
+| `Auth__AllowRegistration` | `true` para criar a conta; **desligar depois que o Gabriel criar a dele** (padrão `false`: `/api/auth/register` nem existe) |
+
+Pré-requisito: um domínio ou subdomínio apontando para o IP da VPS e configurado na aplicação do Coolify.
 
 ### 12.3 Deploy
-`deploy/deploy.sh` na VPS: `git pull` → `docker compose build` → `docker compose up -d`. CI/CD fica para uma fase futura.
+Cada push na branch configurada dispara o build da imagem e o deploy da aplicação no Coolify (o container novo sobe com os mesmos volumes). `GET /api/health` (liveness) e `GET /api/health/ready` (verifica o Postgres) servem de health check; a imagem inclui `curl` para isso. CI/CD de testes antes do deploy fica para uma fase futura.
 
 ### 12.4 Backup e restauração
-- `backup.sh` diário via cron do host às 03:30: `pg_dump -Fc` + `tar` do volume de anexos → `rclone copy` para um remoto externo configurado no `.env` (Backblaze B2, Cloudflare R2 ou Google Drive).
-- Retenção: 7 diários + 4 semanais.
-- `restore.sh`: baixa um backup, `pg_restore` no banco e extrai os anexos.
-- **A restauração deve ser testada uma vez antes de cadastrar dados reais** (faz parte do critério de sucesso 6).
+- Postgres: backup agendado do próprio Coolify, com destino S3 externo à VPS (Backblaze B2, Cloudflare R2 ou outro compatível com S3) e retenção configurada no agendamento.
+- **Pendência:** o backup agendado do Coolify cobre só o banco. Os anexos (`/data/attachments`) e as chaves (`/data/keys`) são volumes e ficam de fora; definir uma rotina para eles (snapshot da VPS ou cópia do volume para o mesmo destino) antes de depender dos anexos.
+- **A restauração deve ser testada uma vez antes de cadastrar dados reais** (faz parte do critério de sucesso 6): restaurar um backup do Postgres num banco novo e conferir que a aplicação sobe contra ele.
 
 ---
 

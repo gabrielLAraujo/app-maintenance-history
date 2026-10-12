@@ -1,0 +1,40 @@
+# Contexto de build = raiz do repositório (docker build -f backend/Dockerfile .). Só entra o que a imagem usa:
+# frontend/ (sem node_modules/dist) e backend/ (sem testes, bin e obj).
+
+# Controle de versão e ferramentas do agente
+.git/
+.gitattributes
+.gitignore
+.claude/
+.superpowers/
+
+# Documentação
+docs/
+**/*.md
+
+# Artefatos de build e dependências (a imagem refaz tudo)
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/coverage/
+**/wwwroot/
+**/.vite/
+**/*.tsbuildinfo
+
+# Testes do back (o Dockerfile só restaura e publica o Garage.Api)
+backend/tests/
+
+# Segredos e arquivos locais
+**/.env
+**/.env.*
+**/*.user
+**/*.local
+**/*.log
+
+# Editores
+**/.vs/
+**/.vscode/
+**/.idea/
+**/.DS_Store
