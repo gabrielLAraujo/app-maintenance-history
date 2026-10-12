@@ -5,7 +5,11 @@ using System.Text.Json;
 using Garage.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
+using Serilog.Core;
+using Serilog.Events;
 
 namespace Garage.Api.IntegrationTests.Sharing;
 
@@ -308,24 +312,117 @@ public sealed class PublicViewTests(GarageApiFactory factory)
     }
 
     [Fact]
-    public async Task Public_endpoint_is_rate_limited()
+    public async Task Public_view_and_photos_have_separate_rate_limits()
     {
         using var owner = await UserAsync();
-        var vehicleId = await owner.CreateVehicleAsync();
-        var token = Token(await owner.CreateShareLinkAsync(vehicleId));
-        using var limited = factory.WithWebHostBuilder(builder => builder.UseSetting("RateLimits:PublicPerMinute", "2"));
+        var seeded = await SeedAsync(owner);
+        var token = Token(await owner.CreateShareLinkAsync(seeded.VehicleId));
+        using var limited = factory.WithWebHostBuilder(builder => builder
+            .UseSetting("RateLimits:PublicPerMinute", "2")
+            .UseSetting("RateLimits:PublicPhotosPerMinute", "3"));
         using var visitor = limited.CreateClient();
 
-        using var first = await visitor.GetAsync(PublicUrl(token));
-        using var second = await visitor.GetAsync(PublicUrl(token));
-        // A cota por IP é da política "public", compartilhada pelas duas rotas públicas.
-        using var third = await visitor.GetAsync(PhotoUrl(token, Guid.NewGuid()));
-        using var fourth = await visitor.GetAsync(PublicUrl(token));
+        // A visão JSON esgota a cota da política "public"...
+        using var firstView = await visitor.GetAsync(PublicUrl(token));
+        using var secondView = await visitor.GetAsync(PublicUrl(token));
+        using var thirdView = await visitor.GetAsync(PublicUrl(token));
+        // ...e as fotos da mesma página seguem carregando: a cota delas é outra ("public-photos"), por IP também.
+        var photos = new List<HttpStatusCode>();
+        for (var photo = 0; photo < 3; photo++)
+        {
+            using var response = await visitor.GetAsync(PhotoUrl(token, seeded.PublicPhoto));
+            photos.Add(response.StatusCode);
+        }
 
-        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
-        await third.AssertProblemAsync(HttpStatusCode.TooManyRequests, "rate_limit.exceeded");
-        await fourth.AssertProblemAsync(HttpStatusCode.TooManyRequests, "rate_limit.exceeded");
+        using var overPhotoLimit = await visitor.GetAsync(PhotoUrl(token, seeded.PublicPhoto));
+
+        Assert.Equal(HttpStatusCode.OK, firstView.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondView.StatusCode);
+        await thirdView.AssertProblemAsync(HttpStatusCode.TooManyRequests, "rate_limit.exceeded");
+        Assert.All(photos, status => Assert.Equal(HttpStatusCode.OK, status));
+        await overPhotoLimit.AssertProblemAsync(HttpStatusCode.TooManyRequests, "rate_limit.exceeded");
+    }
+
+    [Fact]
+    public async Task Public_view_is_never_cached_and_photos_are_cached_privately_for_an_hour()
+    {
+        using var owner = await UserAsync();
+        var seeded = await SeedAsync(owner);
+        var token = Token(await owner.CreateShareLinkAsync(seeded.VehicleId));
+        using var visitor = factory.CreateClient();
+
+        using var view = await visitor.GetAsync(PublicUrl(token));
+        using var photo = await visitor.GetAsync(PhotoUrl(token, seeded.PublicPhoto));
+        using var unknownLink = await visitor.GetAsync(PublicUrl(new string('A', 43)));
+        using var privatePhoto = await visitor.GetAsync(PhotoUrl(token, seeded.PrivatePhoto));
+
+        Assert.Equal(HttpStatusCode.OK, view.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, photo.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, unknownLink.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, privatePhoto.StatusCode);
+        // A visão muda a cada edição do dono e some quando o link é revogado: nunca fica em cache.
+        foreach (var response in new[] { view, unknownLink, privatePhoto })
+            Assert.True(response.Headers.CacheControl?.NoStore, $"Sem no-store em {response.RequestMessage?.RequestUri}.");
+        // A foto pode ficar no cache do navegador de quem já a viu por até 1 h; revogar o link barra as cargas novas.
+        var photoCache = photo.Headers.CacheControl;
+        Assert.NotNull(photoCache);
+        Assert.True(photoCache.Private);
+        Assert.False(photoCache.NoStore);
+        Assert.Equal(TimeSpan.FromHours(1), photoCache.MaxAge);
+    }
+
+    [Fact]
+    public async Task Public_token_never_reaches_the_logs()
+    {
+        using var owner = await UserAsync();
+        var seeded = await SeedAsync(owner);
+        var token = Token(await owner.CreateShareLinkAsync(seeded.VehicleId));
+        var sink = new CapturingLogSink();
+        // Um wwwroot mínimo, para a página /p/{token} sair pelo fallback da SPA como em produção.
+        var webRoot = Path.Combine(Path.GetTempPath(), "garage-tests", "spa-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(webRoot);
+        await File.WriteAllTextAsync(Path.Combine(webRoot, "index.html"), "<!doctype html><div id=\"root\"></div>");
+        try
+        {
+            using var logged = factory.WithWebHostBuilder(builder => builder
+                .UseWebRoot(webRoot)
+                .ConfigureTestServices(services => services.AddSingleton<ILogEventSink>(sink)));
+            using var visitor = logged.CreateClient();
+
+            using var view = await visitor.GetAsync(PublicUrl(token));
+            using var photo = await visitor.GetAsync(PhotoUrl(token, seeded.PublicPhoto));
+            using var page = await visitor.GetAsync($"/p/{token}");
+            using var unknown = await visitor.GetAsync(PhotoUrl(token, Guid.NewGuid()));
+
+            Assert.Equal(HttpStatusCode.OK, view.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, photo.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+            string[] maskedPaths = ["/api/public/***", $"/api/public/***/attachments/{seeded.PublicPhoto}"];
+            var allRequestsLogged = await sink.WaitUntilAsync(captured => captured.Count(IsRequestLog) >= 4);
+            var events = sink.Events;
+            // O token é a credencial do link: não pode aparecer em nenhum evento, nem em propriedade nem na mensagem.
+            foreach (var logEvent in events)
+            {
+                var text = CapturingLogSink.Describe(logEvent);
+                Assert.False(text.Contains(token, StringComparison.Ordinal), $"O token apareceu no log:{Environment.NewLine}{text}");
+            }
+
+            Assert.True(allRequestsLogged, $"Esperava o log das 4 requisições; vieram {events.Count(IsRequestLog)}.");
+            var requestPaths = events.Where(IsRequestLog).Select(e => CapturingLogSink.Scalar(e, "RequestPath")).ToList();
+            Assert.All(maskedPaths, path => Assert.Contains(path, requestPaths));
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(webRoot, recursive: true);
+            }
+            catch (IOException)
+            {
+                // Limpeza de temporário: um arquivo ainda aberto pelo host de teste não deve reprovar o teste.
+            }
+        }
     }
 
     /// <summary>
@@ -378,6 +475,9 @@ public sealed class PublicViewTests(GarageApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await response.Content.ReadAsByteArrayAsync();
     }
+
+    private static bool IsRequestLog(LogEvent logEvent) =>
+        CapturingLogSink.Scalar(logEvent, "SourceContext") == "Serilog.AspNetCore.RequestLoggingMiddleware";
 
     private static string PublicUrl(string token) => $"/api/public/{token}";
 

@@ -7,6 +7,8 @@ using Garage.Domain.Records;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Serilog.Events;
 
 namespace Garage.Api.IntegrationTests;
 
@@ -60,6 +62,61 @@ public sealed class HostTests(GarageApiFactory factory)
         Assert.DoesNotContain("segredo", body);
         Assert.DoesNotContain("StackTrace", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("\"traceId\"", body);
+    }
+
+    [Fact]
+    public async Task Exception_handler_ignores_requests_aborted_by_the_client()
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var logger = new RecordingLogger();
+        var handler = new GlobalExceptionHandler(scope.ServiceProvider.GetRequiredService<IProblemDetailsService>(), logger);
+        using var aborted = new CancellationTokenSource();
+        await aborted.CancelAsync();
+        var context = NewHttpContext(scope.ServiceProvider);
+        context.RequestAborted = aborted.Token;
+
+        var handled = await handler.TryHandleAsync(context, new OperationCanceledException(aborted.Token), CancellationToken.None);
+
+        // O cliente desistiu: não é falha do servidor, e não há para quem escrever o corpo.
+        Assert.True(handled);
+        Assert.Equal(StatusCodes.Status499ClientClosedRequest, context.Response.StatusCode);
+        Assert.Equal(0, context.Response.Body.Length);
+        Assert.DoesNotContain(logger.Levels, level => level >= LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task Exception_handler_still_reports_a_cancellation_the_client_did_not_ask_for()
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var logger = new RecordingLogger();
+        var handler = new GlobalExceptionHandler(scope.ServiceProvider.GetRequiredService<IProblemDetailsService>(), logger);
+        var context = NewHttpContext(scope.ServiceProvider);
+
+        // Um timeout interno também é OperationCanceledException, mas com o cliente ainda esperando: é erro do servidor.
+        var handled = await handler.TryHandleAsync(context, new OperationCanceledException("timeout"), CancellationToken.None);
+
+        Assert.True(handled);
+        Assert.Equal(StatusCodes.Status500InternalServerError, context.Response.StatusCode);
+        Assert.Contains(LogLevel.Error, logger.Levels);
+    }
+
+    [Theory]
+    [InlineData(true, true, 200, LogEventLevel.Information)]
+    [InlineData(true, false, 200, LogEventLevel.Error)]
+    [InlineData(false, false, 500, LogEventLevel.Error)]
+    [InlineData(false, false, 503, LogEventLevel.Error)]
+    [InlineData(false, false, 404, LogEventLevel.Information)]
+    [InlineData(false, true, 200, LogEventLevel.Information)]
+    public async Task Request_log_level_does_not_treat_client_aborts_as_errors(
+        bool cancellationException, bool clientAborted, int status, LogEventLevel expected)
+    {
+        using var aborted = new CancellationTokenSource();
+        if (clientAborted)
+            await aborted.CancelAsync();
+        var context = new DefaultHttpContext { RequestAborted = aborted.Token, Response = { StatusCode = status } };
+        var exception = cancellationException ? new OperationCanceledException() : null;
+
+        Assert.Equal(expected, RequestLoggingSetup.GetLevel(context, 12.5, exception));
     }
 
     [Theory]
@@ -128,5 +185,18 @@ public sealed class HostTests(GarageApiFactory factory)
         context.Response.Body.Position = 0;
         using var reader = new StreamReader(context.Response.Body);
         return await reader.ReadToEndAsync();
+    }
+
+    /// <summary>Guarda o nível de cada entrada de log do <see cref="GlobalExceptionHandler"/>.</summary>
+    private sealed class RecordingLogger : ILogger<GlobalExceptionHandler>
+    {
+        public List<LogLevel> Levels { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Levels.Add(logLevel);
     }
 }

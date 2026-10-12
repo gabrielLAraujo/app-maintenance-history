@@ -284,6 +284,21 @@ public sealed class AuthTests(GarageApiFactory factory)
     }
 
     [Fact]
+    public async Task Register_is_rate_limited_by_the_login_policy()
+    {
+        using var limited = factory.WithWebHostBuilder(builder => builder.UseSetting("RateLimits:LoginPerMinute", "1"));
+        // Dois visitantes do mesmo IP: o cadastro autentica, então o segundo pedido precisa de um cliente anônimo próprio.
+        using var first = await limited.CreateAnonymousClientAsync();
+        using var second = await limited.CreateAnonymousClientAsync();
+
+        using var allowed = await PostCredentialsAsync(first, "/api/auth/register", NewEmail(), TestClients.Password);
+        using var rejected = await PostCredentialsAsync(second, "/api/auth/register", NewEmail(), TestClients.Password);
+
+        Assert.Equal(HttpStatusCode.Created, allowed.StatusCode);
+        await rejected.AssertProblemAsync(HttpStatusCode.TooManyRequests, "rate_limit.exceeded");
+    }
+
+    [Fact]
     public async Task Password_reset_issues_working_temporary_password_and_unlocks()
     {
         var email = NewEmail();

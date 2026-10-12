@@ -10,6 +10,7 @@ public static class RateLimitPolicies
 {
     public const string Login = "login";
     public const string Public = "public";
+    public const string PublicPhotos = "public-photos";
     public const string Catalog = "catalog";
     public const string Uploads = "uploads";
 }
@@ -30,6 +31,7 @@ public static class RateLimitingSetup
 
             options.AddPolicy(RateLimitPolicies.Login, http => ByIp(http, limits => limits.LoginPerMinute));
             options.AddPolicy(RateLimitPolicies.Public, http => ByIp(http, limits => limits.PublicPerMinute));
+            options.AddPolicy(RateLimitPolicies.PublicPhotos, http => ByIp(http, limits => limits.PublicPhotosPerMinute));
             options.AddPolicy(RateLimitPolicies.Catalog, http => ByUser(http, limits => limits.CatalogPerMinute));
             options.AddPolicy(RateLimitPolicies.Uploads, http => ByUser(http, limits => limits.UploadsPerMinute));
         });

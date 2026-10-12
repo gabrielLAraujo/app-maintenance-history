@@ -1,16 +1,15 @@
 namespace Garage.Api.Public;
 
 /// <summary>
-/// Cabeçalhos das respostas públicas (spec 10.3): a visão de um link não deve ser indexada por buscadores nem vazar a URL
-/// (com o token) no <c>Referer</c>. São definidos antes do endpoint rodar, então valem também nas respostas de erro (404).
+/// Cabeçalho das respostas públicas (spec 10.3): a visão de um link não deve ser indexada por buscadores. É definido antes
+/// do endpoint rodar, então vale também nas respostas de erro (404). O <c>Referrer-Policy: no-referrer</c>, que impede a URL
+/// (com o token) de vazar no <c>Referer</c>, vem do <c>SecurityHeadersMiddleware</c>, em toda resposta.
 /// </summary>
 internal sealed class PublicHeadersFilter : IEndpointFilter
 {
     public ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
-        var headers = context.HttpContext.Response.Headers;
-        headers["X-Robots-Tag"] = "noindex";
-        headers["Referrer-Policy"] = "no-referrer";
+        context.HttpContext.Response.Headers["X-Robots-Tag"] = "noindex";
 
         return next(context);
     }

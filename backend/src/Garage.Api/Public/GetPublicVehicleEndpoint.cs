@@ -20,10 +20,13 @@ internal sealed class GetPublicVehicleEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
-    private static async Task<IResult> HandleAsync(string token, string? cursor, ISender sender, CancellationToken ct)
+    private static async Task<IResult> HandleAsync(
+        string token, string? cursor, ISender sender, HttpResponse response, CancellationToken ct)
     {
         var result = await sender.Send(new GetPublicVehicleQuery(token, cursor), ct);
 
+        // A visão muda a cada edição do dono e deixa de existir quando o link é revogado ou expira: nunca vai para cache.
+        response.Headers.CacheControl = "no-store";
         return result.ToHttpResult(view => TypedResults.Ok(view));
     }
 }

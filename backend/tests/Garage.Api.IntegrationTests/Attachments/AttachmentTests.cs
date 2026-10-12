@@ -514,6 +514,28 @@ public sealed class AttachmentTests(GarageApiFactory factory)
     }
 
     [Fact]
+    public async Task Private_downloads_are_never_cached()
+    {
+        using var client = await UserAsync();
+        var (vehicleId, recordId) = await VehicleWithRecordAsync(client);
+        var photo = Id(await client.UploadAttachmentAsync(vehicleId, recordId, TestImages.TinyPng(), "foto.png"));
+        var pdf = Id(await client.UploadAttachmentAsync(vehicleId, recordId, TestImages.Pdf(), "nota.pdf", kind: "document"));
+
+        using var image = await client.GetAsync(ContentUrl(vehicleId, photo));
+        using var document = await client.GetAsync(ContentUrl(vehicleId, pdf));
+
+        // Nota fiscal e foto privada do dono: nada fica em cache de navegador nem de proxy.
+        foreach (var response in new[] { image, document })
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var cache = response.Headers.CacheControl;
+            Assert.NotNull(cache);
+            Assert.True(cache.Private);
+            Assert.True(cache.NoStore);
+        }
+    }
+
+    [Fact]
     public async Task Upload_requires_the_antiforgery_token()
     {
         using var client = await UserAsync();

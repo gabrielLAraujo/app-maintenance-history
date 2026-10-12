@@ -22,6 +22,8 @@ internal sealed class GetAttachmentContentEndpoint : IEndpoint
     {
         var result = await sender.Send(new GetAttachmentContentQuery(vehicleId, attachmentId), ct);
 
+        // Notas fiscais e fotos privadas do dono: nada fica guardado em cache de navegador ou de proxy.
+        response.Headers.CacheControl = "private, no-store";
         return result.ToHttpResult(file => ToFileResult(file, response));
     }
 

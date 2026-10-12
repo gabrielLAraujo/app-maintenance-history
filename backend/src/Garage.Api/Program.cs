@@ -20,6 +20,8 @@ builder.Services.AddSerilog((services, logger) => logger
     .ReadFrom.Configuration(builder.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
+    // Por último: mascara também o que os enrichers anteriores e o escopo da requisição acrescentaram.
+    .Enrich.With<PublicTokenMasking>()
     .WriteTo.Console(new CompactJsonFormatter()));
 
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
@@ -57,7 +59,7 @@ if (args is ["reset-password", var email])
 
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
-app.UseSerilogRequestLogging();
+app.UseRequestLogging();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseSpaStaticFiles();
 app.UseAuthentication();

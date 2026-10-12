@@ -15,7 +15,7 @@ namespace Garage.Api.IntegrationTests.Infrastructure;
 public sealed class GarageApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private static readonly string[] RateLimitKeys =
-        ["LoginPerMinute", "PublicPerMinute", "CatalogPerMinute", "UploadsPerMinute"];
+        ["LoginPerMinute", "PublicPerMinute", "PublicPhotosPerMinute", "CatalogPerMinute", "UploadsPerMinute"];
 
     private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:18").Build();
 

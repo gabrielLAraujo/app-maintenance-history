@@ -15,10 +15,13 @@ internal sealed class RegisterEndpoint : IEndpoint
 
         api.MapPost("/auth/register", HandleAsync)
             .AllowAnonymous()
+            // Mesma cota do login, por IP: sem ela o cadastro aberto aceitaria contas (e hashes de senha) sem limite.
+            .RequireRateLimiting(RateLimitPolicies.Login)
             .WithName("Register")
             .WithTags("Auth")
             .Produces<CreatedIdResponse>(StatusCodes.Status201Created)
-            .ProducesValidationProblem();
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
     }
 
     private static async Task<IResult> HandleAsync(

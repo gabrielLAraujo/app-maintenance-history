@@ -110,6 +110,42 @@ public sealed class SpaHostingTests(GarageApiFactory factory) : IDisposable
     }
 
     [Fact]
+    public async Task Spa_fallback_under_assets_is_revalidated_never_immutable()
+    {
+        using var spa = WithWebRoot();
+        using var client = spa.CreateCookieClient();
+
+        // Sem extensão, /assets/foo não é arquivo do build: cai no fallback, que serve o index.html.
+        using var response = await client.GetAsync("/assets/foo");
+
+        await AssertSpaIndexAsync(response);
+        var cache = response.Headers.CacheControl;
+        Assert.NotNull(cache);
+        Assert.True(cache.NoCache);
+        Assert.DoesNotContain("immutable", cache.ToString(), StringComparison.Ordinal);
+        Assert.Null(cache.MaxAge);
+    }
+
+    [Fact]
+    public async Task Public_page_is_not_indexed_but_the_rest_of_the_spa_is()
+    {
+        using var spa = WithWebRoot();
+        using var client = spa.CreateCookieClient();
+
+        using var publicPage = await client.GetAsync("/p/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_AbCde");
+        using var deepLink = await client.GetAsync("/vehicles/abc");
+        using var root = await client.GetAsync("/");
+
+        await AssertSpaIndexAsync(publicPage);
+        Assert.Equal(["noindex"], publicPage.Headers.GetValues("X-Robots-Tag"));
+        foreach (var response in new[] { deepLink, root })
+        {
+            await AssertSpaIndexAsync(response);
+            Assert.False(response.Headers.Contains("X-Robots-Tag"), $"X-Robots-Tag em {response.RequestMessage?.RequestUri}.");
+        }
+    }
+
+    [Fact]
     public async Task Spa_fallback_is_not_mapped_without_index_html()
     {
         using var empty = WithWebRoot(withIndex: false);

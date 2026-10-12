@@ -5,11 +5,17 @@ public sealed class RateLimitOptions
 {
     public const string SectionName = "RateLimits";
 
-    /// <summary><c>POST /auth/login</c>, por IP.</summary>
+    /// <summary><c>POST /auth/login</c> e <c>POST /auth/register</c> (a mesma cota), por IP.</summary>
     public int LoginPerMinute { get; set; } = 5;
 
-    /// <summary><c>/public/*</c>, por IP.</summary>
+    /// <summary><c>GET /public/{token}</c> (a visão JSON), por IP.</summary>
     public int PublicPerMinute { get; set; } = 60;
+
+    /// <summary>
+    /// <c>GET /public/{token}/attachments/{id}</c>, por IP. À parte da visão: uma página com 30 registros e algumas fotos em
+    /// cada um carrega dezenas de imagens de uma vez.
+    /// </summary>
+    public int PublicPhotosPerMinute { get; set; } = 600;
 
     /// <summary><c>/catalog/*</c>, por usuário.</summary>
     public int CatalogPerMinute { get; set; } = 30;
