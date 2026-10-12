@@ -1,6 +1,8 @@
 using Garage.Application.Abstractions.Messaging;
 using Garage.Application.Abstractions.Ports;
+using Garage.Application.Attachments;
 using Garage.Application.Sharing;
+using Garage.Domain.Attachments;
 using Garage.Domain.Common;
 using Garage.Domain.Records;
 using Garage.Domain.Reminders;
@@ -17,8 +19,15 @@ internal sealed class SeedDemoDataHandler(
     IServiceRecordRepository records,
     IReminderRepository reminders,
     IShareLinkRepository shareLinks,
+    IAttachmentRepository attachments,
+    IDemoAssets assets,
+    IImageProcessor images,
+    IFileStorage storage,
+    IUnitOfWork unitOfWork,
     IAppClock clock) : ICommandHandler<SeedDemoDataCommand, DemoSeedResult>
 {
+    private const string PdfContentType = "application/pdf";
+
     public async Task<Result<DemoSeedResult>> Handle(SeedDemoDataCommand command, CancellationToken ct)
     {
         var ownerId = currentUser.UserId;
@@ -29,20 +38,28 @@ internal sealed class SeedDemoDataHandler(
         var now = clock.Now;
         var demoVehicles = DemoDataCatalog.Build(today);
 
-        // Nada é gravado aqui: o TransactionCommandDecorator faz um único SaveChanges, então uma falha em qualquer
-        // item (que o catálogo não deve ter) descarta tudo, sem deixar metade dos dados de exemplo.
+        // Nenhuma linha é gravada aqui: o TransactionCommandDecorator faz um único SaveChanges, então uma falha em qualquer
+        // item (que o catálogo não deve ter) descarta tudo, sem deixar metade dos dados de exemplo. Os arquivos dos anexos
+        // vão para o disco já durante o laço, mas cada um com a limpeza registrada antes (OnRollback), como no upload.
         foreach (var demo in demoVehicles)
         {
             var vehicle = Vehicle.Create(ownerId, demo.Data, demo.CurrentOdometer, now);
             vehicles.Add(vehicle);
 
-            foreach (var details in demo.Records)
+            foreach (var item in demo.Records)
             {
-                var created = ServiceRecord.Create(vehicle.Id, details, BoundsFor(details, demo.Records), [], today, now);
+                var created = ServiceRecord.Create(vehicle.Id, item.Details, BoundsFor(item.Details, demo.Records), [], today, now);
                 if (created.IsFailure)
                     return created.Error!;
 
                 records.Add(created.Value);
+
+                foreach (var file in item.Attachments)
+                {
+                    var attached = await AttachAsync(vehicle.Id, created.Value.Id, file, now, ct);
+                    if (attached.IsFailure)
+                        return attached.Error!;
+                }
             }
 
             foreach (var item in demo.Reminders)
@@ -69,10 +86,69 @@ internal sealed class SeedDemoDataHandler(
     }
 
     /// <summary>
+    /// O mesmo caminho do <c>UploadAttachmentHandler</c> (A2 e A5): o tipo vem dos primeiros bytes, as fotos passam pelo
+    /// <see cref="IImageProcessor"/> (sem metadados, sRGB, no máximo 2560 px, JPEG q85) e o PDF segue como veio. A
+    /// visibilidade vem do catálogo (o domínio recusa documento público, A4).
+    /// </summary>
+    private async Task<Result> AttachAsync(Guid vehicleId, Guid recordId, DemoAttachment file, DateTimeOffset now, CancellationToken ct)
+    {
+        await using var buffer = new MemoryStream();
+        await using (var asset = assets.Open(file.Asset))
+            await asset.CopyToAsync(buffer, ct);
+
+        if (FileSignature.Detect(buffer.GetBuffer().AsSpan(0, (int)buffer.Length)) is not { } type)
+            return AttachmentErrors.UnsupportedType;
+
+        buffer.Position = 0;
+        var processed = await ProcessAsync(buffer, type, ct);
+        if (processed is null)
+            return AttachmentErrors.UnsupportedType;
+
+        await using var content = processed.Content;
+        var attachment = Attachment.Create(
+            vehicleId,
+            recordId,
+            file.Kind,
+            type,
+            AttachmentMapping.CleanFileName(file.FileName),
+            processed.ContentType,
+            processed.Length,
+            now);
+
+        var visibility = attachment.SetVisibility(file.IsPublic);
+        if (visibility.IsFailure)
+            return visibility;
+
+        // Registrado antes de gravar: se a gravação, outro item do seed ou o commit falharem, o arquivo não fica órfão no
+        // disco. Apagar uma chave que não chegou a ser gravada não faz nada.
+        unitOfWork.OnRollback(rollbackCt => storage.DeleteAsync(attachment.StorageKey, rollbackCt));
+        await storage.SaveAsync(attachment.StorageKey, content, ct);
+
+        attachments.Add(attachment);
+        return Result.Success();
+    }
+
+    /// <summary>A5: imagens são reprocessadas; PDFs seguem como vieram. <c>null</c> se a imagem não decodificar.</summary>
+    private async Task<ProcessedFile?> ProcessAsync(MemoryStream buffer, DetectedFileType type, CancellationToken ct)
+    {
+        if (type == DetectedFileType.Pdf)
+            return new ProcessedFile(buffer, PdfContentType, buffer.Length);
+
+        try
+        {
+            return await images.NormalizeAsync(buffer, type, ct);
+        }
+        catch (InvalidDataException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// R3 sem consultar o banco (nada foi gravado ainda): a maior km entre os registros mais antigos e a menor entre os mais
     /// novos, como <see cref="IServiceRecordRepository.GetOdometerBoundsAsync"/> calcularia.
     /// </summary>
-    private static OdometerBounds BoundsFor(RecordDetails details, IReadOnlyList<RecordDetails> all) => new(
-        all.Where(other => other.Date < details.Date).Select(other => other.Odometer?.Km).Max(),
-        all.Where(other => other.Date > details.Date).Select(other => other.Odometer?.Km).Min());
+    private static OdometerBounds BoundsFor(RecordDetails details, IReadOnlyList<DemoRecord> all) => new(
+        all.Where(other => other.Details.Date < details.Date).Select(other => other.Details.Odometer?.Km).Max(),
+        all.Where(other => other.Details.Date > details.Date).Select(other => other.Details.Odometer?.Km).Min());
 }

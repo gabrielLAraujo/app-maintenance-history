@@ -1,3 +1,4 @@
+using Garage.Domain.Attachments;
 using Garage.Domain.Common;
 using Garage.Domain.Records;
 using Garage.Domain.Reminders;
@@ -9,7 +10,8 @@ namespace Garage.Application.Demo;
 /// Os dados de exemplo: um Civic EK com histórico completo (inclusive uma modificação), lembretes em todos os estados e um
 /// link público, e um Gol com o mínimo. Tudo é relativo a "hoje" (<c>IAppClock.Today</c>), para as datas nunca ficarem
 /// no futuro nem os prazos dos lembretes mudarem de estado com o tempo, e é montado com os tipos do domínio, que impõem
-/// as próprias regras na criação.
+/// as próprias regras na criação. Os registros levam fotos reais do Wikimedia Commons (e, no Coilover, uma nota de
+/// exemplo em PDF); o autor e a licença de cada foto vão na descrição do registro, que a página pública mostra.
 /// </summary>
 internal static class DemoDataCatalog
 {
@@ -27,18 +29,27 @@ internal static class DemoDataCatalog
             NewRecord(today, RecordType.Maintenance, daysAgo: 700, km: 128_900, "Troca da correia dentada", Category.Engine,
                 description: "Kit completo com tensor; bomba d'água trocada junto.",
                 performedBy: "Auto Center Bom Motor", laborCost: 450.00m,
-                parts: [NewPart("Kit correia dentada com tensor", 1, 389.90m, brand: "Gates"), NewPart("Bomba d'água", 1, 165.00m, brand: "Nakata")]),
+                parts: [NewPart("Kit correia dentada com tensor", 1, 389.90m, brand: "Gates"), NewPart("Bomba d'água", 1, 165.00m, brand: "Nakata")],
+                attachments: [Photo("civic-correia-dentada.jpg", "correia-dentada.jpg", "Terabass (CC BY-SA 3.0)")]),
             NewRecord(today, RecordType.Maintenance, daysAgo: 560, km: 133_600, "Pastilhas de freio dianteiras", Category.Brakes,
                 description: "Trocadas por desgaste; discos medidos e dentro do limite.",
                 performedBy: "Auto Center Bom Motor", laborCost: 120.00m,
-                parts: [NewPart("Pastilha de freio dianteira", 1, 148.00m, brand: "Cobreq")]),
+                parts: [NewPart("Pastilha de freio dianteira", 1, 148.00m, brand: "Cobreq")],
+                attachments: [Photo("civic-pastilhas-freio.jpg", "pastilhas-freio.jpg", "Riley from Christchurch, New Zealand (CC BY 2.0)")]),
             NewRecord(today, RecordType.Maintenance, daysAgo: 430, km: 137_900, "Alinhamento e balanceamento", Category.WheelsTires,
-                performedBy: "Pneus & Cia", laborCost: 160.00m),
+                performedBy: "Pneus & Cia", laborCost: 160.00m,
+                attachments: [Photo("civic-alinhamento.jpg", "alinhamento.jpg", "Mike Peel (www.mikepeel.net) (CC BY-SA 4.0)")]),
             NewRecord(today, RecordType.Modification, daysAgo: 300, km: 142_200, "Coilover", Category.Suspension,
                 description: "Kit rosqueável regulável; altura ajustada para o uso diário.",
                 performedBy: "Garage Performance", laborCost: 600.00m,
                 replacedOriginalPart: "Amortecedores originais guardados",
-                parts: [NewPart("Kit coilover rosqueável", 1, 3_890.00m, brand: "BC Racing")]),
+                parts: [NewPart("Kit coilover rosqueável", 1, 3_890.00m, brand: "BC Racing")],
+                attachments:
+                [
+                    Photo("civic-coilover.jpg", "coilover.jpg", "Fortune Auto North America (CC BY-SA 4.0)"),
+                    Photo("civic-amortecedores-originais.jpg", "amortecedores-originais.jpg", "Shixart1985 (CC BY 2.0)"),
+                    SampleInvoice("civic-coilover-nota-exemplo.pdf", "coilover-nota-exemplo.pdf")
+                ]),
             NewRecord(today, RecordType.Maintenance, daysAgo: 130, km: 147_800, "Troca de óleo e filtro", Category.Engine,
                 description: "Óleo 5W30 sintético.",
                 performedBy: "Auto Center Bom Motor", laborCost: 60.00m,
@@ -46,10 +57,16 @@ internal static class DemoDataCatalog
                 [
                     NewPart("Óleo de motor 5W30 sintético", 3.5m, 52.00m, PartUnit.Liter, brand: "Mobil"),
                     NewPart("Filtro de óleo", 1, 28.90m, brand: "Tecfil")
+                ],
+                attachments:
+                [
+                    Photo("civic-oleo.jpg", "oleo.jpg", "Santeri Viinamäki (CC BY-SA 4.0)"),
+                    Photo("civic-filtro-oleo.jpg", "filtro-oleo.jpg", "Harrikkamies (domínio público)")
                 ]),
             NewRecord(today, RecordType.Maintenance, daysAgo: 10, km: 151_800, "Repintura do para-choque dianteiro", Category.BodyPaint,
                 description: "Retoque de arranhões e repintura na cor original.",
-                performedBy: "Funilaria Bom Acabamento", laborCost: 850.00m)
+                performedBy: "Funilaria Bom Acabamento", laborCost: 850.00m,
+                attachments: [Photo("civic-lx-frente.jpg", "para-choque.jpg", "Elise240SX (CC BY-SA 4.0)")])
         ],
         Reminders:
         [
@@ -80,7 +97,9 @@ internal static class DemoDataCatalog
             NewRecord(today, RecordType.Maintenance, daysAgo: 90, km: 45_200, "Troca dos quatro pneus", Category.WheelsTires,
                 description: "Montagem e balanceamento incluídos na mão de obra.",
                 performedBy: "Pneus & Cia", laborCost: 100.00m,
-                parts: [NewPart("Pneu 175/70 R14", 4, 289.90m)])
+                parts: [NewPart("Pneu 175/70 R14", 4, 289.90m)],
+                // A única foto fora do link público (o Gol nem tem link): exemplo da visibilidade por foto.
+                attachments: [Photo("gol-pneus.jpg", "pneus.jpg", "ProjectManhattan (CC BY-SA 3.0)", isPublic: false)])
         ],
         Reminders:
         [
@@ -89,7 +108,7 @@ internal static class DemoDataCatalog
         ],
         PublicLink: null);
 
-    private static RecordDetails NewRecord(
+    private static DemoRecord NewRecord(
         DateOnly today,
         RecordType type,
         int daysAgo,
@@ -100,30 +119,66 @@ internal static class DemoDataCatalog
         string? performedBy = null,
         decimal? laborCost = null,
         string? replacedOriginalPart = null,
-        IReadOnlyList<PartData>? parts = null) =>
-        new(
+        IReadOnlyList<PartData>? parts = null,
+        IReadOnlyList<DemoAttachment>? attachments = null)
+    {
+        attachments ??= [];
+        var details = new RecordDetails(
             type,
             today.AddDays(-daysAgo),
             new Odometer(km),
             title,
-            description,
+            WithPhotoCredits(description, attachments),
             category,
             performedBy,
             laborCost is { } labor ? new Money(labor) : null,
             replacedOriginalPart,
             parts ?? []);
 
+        return new DemoRecord(details, attachments);
+    }
+
+    /// <summary>
+    /// As fotos são de terceiros, em licenças que pedem o crédito: autor e licença entram numa linha no fim da descrição
+    /// (a tela do registro e a página pública preservam a quebra de linha). A origem completa de cada arquivo fica em
+    /// <c>Garage.Infrastructure/Demo/Assets/CREDITS.md</c>.
+    /// </summary>
+    private static string? WithPhotoCredits(string? description, IReadOnlyList<DemoAttachment> attachments)
+    {
+        var credits = attachments.Where(file => file.Credit is not null).Select(file => file.Credit!).ToList();
+        if (credits.Count == 0)
+            return description;
+
+        var line = $"{(credits.Count == 1 ? "Crédito da foto" : "Crédito das fotos")} (Wikimedia Commons): {string.Join("; ", credits)}.";
+        return description is null ? line : $"{description}\n{line}";
+    }
+
     private static PartData NewPart(
         string name, decimal quantity, decimal unitPrice, PartUnit unit = PartUnit.Unit, string? brand = null) =>
         new(name, brand, PartNumber: null, quantity, unit, new Money(unitPrice));
+
+    private static DemoAttachment Photo(string asset, string fileName, string credit, bool isPublic = true) =>
+        new(asset, AttachmentKind.Photo, fileName, isPublic, credit);
+
+    // Documento nunca é público (A4); o PDF é fictício e não precisa de crédito.
+    private static DemoAttachment SampleInvoice(string asset, string fileName) =>
+        new(asset, AttachmentKind.Document, fileName, IsPublic: false, Credit: null);
 }
 
 internal sealed record DemoVehicle(
     VehicleData Data,
     Odometer CurrentOdometer,
-    IReadOnlyList<RecordDetails> Records,
+    IReadOnlyList<DemoRecord> Records,
     IReadOnlyList<DemoReminder> Reminders,
     DemoShareLink? PublicLink);
+
+internal sealed record DemoRecord(RecordDetails Details, IReadOnlyList<DemoAttachment> Attachments);
+
+/// <summary>
+/// Um arquivo do registro: o nome do asset embutido (<see cref="Garage.Application.Abstractions.Ports.IDemoAssets"/>),
+/// como aparece na lista de anexos, se vai para o link público (só foto) e, nas fotos, o autor e a licença do crédito.
+/// </summary>
+internal sealed record DemoAttachment(string Asset, AttachmentKind Kind, string FileName, bool IsPublic, string? Credit);
 
 internal sealed record DemoReminder(string Title, ReminderInterval Interval, DateOnly LastDoneDate, Odometer? LastDoneOdometer);
 

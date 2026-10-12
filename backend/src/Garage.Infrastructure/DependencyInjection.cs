@@ -1,6 +1,7 @@
 using Garage.Application.Abstractions.Ports;
 using Garage.Infrastructure.Access;
 using Garage.Infrastructure.Catalog;
+using Garage.Infrastructure.Demo;
 using Garage.Infrastructure.Identity;
 using Garage.Infrastructure.Persistence;
 using Garage.Infrastructure.Persistence.Repositories;
@@ -42,6 +43,7 @@ public static class DependencyInjection
             .ValidateOnStart();
         services.AddSingleton<IFileStorage, LocalDiskFileStorage>();
         services.AddSingleton<IImageProcessor, MagickImageProcessor>();
+        services.AddSingleton<IDemoAssets, EmbeddedDemoAssets>();
 
         services.AddGarageDataProtection(config);
 

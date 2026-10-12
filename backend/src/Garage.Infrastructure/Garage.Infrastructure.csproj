@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Fotos e nota de exemplo do botão "Carregar dados de exemplo"; o nome lógico é estável (ver EmbeddedDemoAssets). -->
+    <EmbeddedResource Include="Demo\Assets\*.jpg;Demo\Assets\*.pdf" LogicalName="Garage.Infrastructure.Demo.Assets.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Garage.Infrastructure.Tests" />
     <InternalsVisibleTo Include="Garage.Api.IntegrationTests" />
   </ItemGroup>
