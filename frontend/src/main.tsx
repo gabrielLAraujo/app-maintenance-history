@@ -3,12 +3,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
+import { shouldRetry } from './api/unwrap'
 import { AuthProvider } from './auth/AuthProvider'
 import './index.css'
 import { routes } from './routes'
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+  defaultOptions: { queries: { retry: shouldRetry, refetchOnWindowFocus: false } },
 })
 const router = createBrowserRouter(routes)
 

@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatKm, formatMoney } from './format'
+import { formatDate, formatInstantDate, formatKm, formatMoney, toNumber } from './format'
+
+describe('toNumber', () => {
+  it('aceita número e texto numérico (o OpenAPI do .NET admite os dois)', () => {
+    expect(toNumber(150000)).toBe(150000)
+    expect(toNumber('150000')).toBe(150000)
+    expect(toNumber('291.8')).toBe(291.8)
+  })
+
+  it('vazio ou inválido vira null', () => {
+    expect(toNumber(null)).toBeNull()
+    expect(toNumber(undefined)).toBeNull()
+    expect(toNumber('')).toBeNull()
+    expect(toNumber('abc')).toBeNull()
+  })
+})
 
 describe('formatKm', () => {
   it('formata em pt-BR', () => {
@@ -45,5 +60,17 @@ describe('formatDate', () => {
 
   it('devolve o texto original quando não é uma data ISO', () => {
     expect(formatDate('ontem')).toBe('ontem')
+  })
+})
+
+describe('formatInstantDate', () => {
+  it('mostra o dia em Brasília, não o do UTC', () => {
+    // 01:30 UTC de 12/10 ainda é noite de 11/10 em Brasília (UTC-3).
+    expect(formatInstantDate('2026-10-12T01:30:00+00:00')).toBe('11/10/2026')
+    expect(formatInstantDate('2026-10-12T15:00:00Z')).toBe('12/10/2026')
+  })
+
+  it('devolve o texto original quando não é uma data', () => {
+    expect(formatInstantDate('ontem')).toBe('ontem')
   })
 })

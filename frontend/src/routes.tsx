@@ -6,6 +6,9 @@ import { Login } from './pages/Login'
 import { NotFound } from './pages/NotFound'
 import { PublicVehicle } from './pages/PublicVehicle'
 import { Register } from './pages/Register'
+import { VehicleDetail } from './pages/VehicleDetail'
+import { VehicleEdit } from './pages/VehicleEdit'
+import { VehicleNew } from './pages/VehicleNew'
 
 /**
  * Mapa de rotas do app. As tasks seguintes acrescentam as telas logadas como filhas do Layout.
@@ -27,7 +30,12 @@ export const routes: RouteObject[] = [
     children: [
       {
         element: <Layout />,
-        children: [{ index: true, element: <Dashboard /> }],
+        children: [
+          { index: true, element: <Dashboard /> },
+          { path: '/vehicles/new', element: <VehicleNew /> },
+          { path: '/vehicles/:id', element: <VehicleDetail /> },
+          { path: '/vehicles/:id/edit', element: <VehicleEdit /> },
+        ],
       },
     ],
   },

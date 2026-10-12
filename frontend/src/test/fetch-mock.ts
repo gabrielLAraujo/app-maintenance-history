@@ -10,7 +10,7 @@ export type Call = {
   body: string
 }
 
-type Handler = (call: Call) => Response | Promise<Response>
+export type Handler = (call: Call) => Response | Promise<Response>
 
 export const noContent = () => new Response(null, { status: 204 })
 

@@ -35,6 +35,7 @@ function fakeApi(options: { signedIn?: boolean; registrationEnabled?: boolean; l
       return noContent()
     },
     'GET /api/vehicles': () => (session.signedIn ? json([]) : problem(401, { title: 'Unauthorized' })),
+    'GET /api/reminders/due': () => (session.signedIn ? json([]) : problem(401, { title: 'Unauthorized' })),
   })
 
   return { calls, session }
@@ -249,7 +250,8 @@ describe('sair e sessão expirada', () => {
 
     expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
     expect(calls.filter((call) => call.path === '/api/auth/me')).toHaveLength(1)
-    expect(calls.filter((call) => call.path === '/api/vehicles')).toHaveLength(1)
+    // Uma do painel ao abrir e uma deste teste: o 401 não faz o painel (já desmontado) buscar de novo.
+    expect(calls.filter((call) => call.path === '/api/vehicles')).toHaveLength(2)
   })
 
   it('depois de expirar, entrar de novo volta ao painel', async () => {
