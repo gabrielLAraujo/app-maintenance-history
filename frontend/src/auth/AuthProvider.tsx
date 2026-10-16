@@ -11,9 +11,13 @@ type AuthContextValue = {
   /** Verdadeiro até saber se há sessão aberta (primeira carga): as rotas mostram um spinner, não a tela errada. */
   loading: boolean
   registrationEnabled: boolean
+  /** A API oferece a demo por visitante (`POST /api/auth/demo`). */
+  demoEnabled: boolean
   /** Devolve `null` quando deu certo; senão o Problem para a tela mostrar. */
   login(email: string, password: string): Promise<Problem | null>
   register(email: string, password: string): Promise<Problem | null>
+  /** Abre uma conta demo, já logada, com os dados de exemplo. Mesmo retorno de `login`. */
+  startDemo(): Promise<Problem | null>
   logout(): Promise<void>
 }
 
@@ -32,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [registrationEnabled, setRegistrationEnabled] = useState(false)
+  const [demoEnabled, setDemoEnabled] = useState(false)
 
   // Sessão expirada no meio do uso: limpa o usuário e os dados em cache. As rotas protegidas veem `user === null`
   // e navegam para /login (sem loop: a tela de login não faz chamadas que dêem 401 "de sessão").
@@ -58,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!current) return
         setUser(me)
         setRegistrationEnabled(config.data?.registrationEnabled ?? false)
+        setDemoEnabled(config.data?.demoEnabled ?? false)
       } catch {
         // API fora do ar: cai na tela de login, cuja tentativa de entrar mostra o aviso de conexão.
       } finally {
@@ -77,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { response, error } = await request()
         if (!response.ok) return toProblem(response.status, error)
 
-        // Login e cadastro abrem a sessão (o cliente já renovou o token antiforgery); /me traz o usuário.
+        // Login, cadastro e demo abrem a sessão (o cliente já renovou o token antiforgery); /me traz o usuário.
         const me = await fetchCurrentUser()
         if (!me) return { status: 401, detail: 'Não foi possível abrir a sessão. Tente de novo.' }
 
@@ -102,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [startSession],
   )
 
+  const startDemo = useCallback(() => startSession(() => api.POST('/api/auth/demo')), [startSession])
+
   const logout = useCallback(async () => {
     try {
       await api.POST('/api/auth/logout')
@@ -113,8 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient])
 
   const value = useMemo(
-    () => ({ user, loading, registrationEnabled, login, register, logout }),
-    [user, loading, registrationEnabled, login, register, logout],
+    () => ({ user, loading, registrationEnabled, demoEnabled, login, register, startDemo, logout }),
+    [user, loading, registrationEnabled, demoEnabled, login, register, startDemo, logout],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

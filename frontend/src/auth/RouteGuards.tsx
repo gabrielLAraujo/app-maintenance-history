@@ -1,4 +1,5 @@
-import { Navigate, Outlet, useLocation } from 'react-router'
+import { Link, Navigate, Outlet, useLocation } from 'react-router'
+import { Logo } from '../components/Logo'
 import { Spinner } from '../components/Spinner'
 import { AuthProvider, useAuth } from './AuthProvider'
 
@@ -14,9 +15,10 @@ export function AuthRoot() {
   )
 }
 
-function PageLoading() {
+/** Tela inteira com o spinner, enquanto se descobre se há sessão. */
+export function PageLoading() {
   return (
-    <div className="grid min-h-dvh place-items-center text-slate-500">
+    <div className="grid min-h-dvh place-items-center text-muted">
       <Spinner />
     </div>
   )
@@ -49,7 +51,9 @@ export function GuestOnly() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-4 py-8">
-      <p className="text-center text-2xl font-bold tracking-tight">Garagem</p>
+      <Link to="/" aria-label="Garagem, início" className="self-center rounded-control">
+        <Logo />
+      </Link>
       <Outlet />
     </main>
   )

@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router'
+import { RootRoute } from './auth/RootRoute'
 import { AuthRoot, GuestOnly, RequireAuth } from './auth/RouteGuards'
 import { Layout } from './components/Layout'
 import { Dashboard } from './pages/Dashboard'
@@ -15,6 +16,7 @@ import { VehicleNew } from './pages/VehicleNew'
 /**
  * Mapa de rotas do app. As tasks seguintes acrescentam as telas logadas como filhas do Layout.
  *  - /p/:token: pública, sem login, sem o Layout e sem sessão (fica fora do AuthRoot: não consulta /api/auth/*);
+ *  - /: a landing para visitantes e o painel (no Layout) para quem tem sessão;
  *  - /login e /register: só para visitantes (/register só abre se `registrationEnabled`);
  *  - o resto exige login e usa o Layout; sem sessão, o RequireAuth leva ao /login.
  */
@@ -23,6 +25,7 @@ export const routes: RouteObject[] = [
   {
     element: <AuthRoot />,
     children: [
+      { path: '/', element: <RootRoute />, children: [{ index: true, element: <Dashboard /> }] },
       {
         element: <GuestOnly />,
         children: [
@@ -36,7 +39,6 @@ export const routes: RouteObject[] = [
           {
             element: <Layout />,
             children: [
-              { index: true, element: <Dashboard /> },
               { path: '/vehicles/new', element: <VehicleNew /> },
               { path: '/vehicles/:id', element: <VehicleDetail /> },
               { path: '/vehicles/:id/edit', element: <VehicleEdit /> },
