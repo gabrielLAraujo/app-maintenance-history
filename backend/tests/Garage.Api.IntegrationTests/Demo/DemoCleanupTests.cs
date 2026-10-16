@@ -6,6 +6,7 @@ using Garage.Domain.Vehicles;
 using Garage.Infrastructure.Demo;
 using Garage.Infrastructure.Identity;
 using Garage.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -77,6 +78,29 @@ public sealed class DemoCleanupTests(GarageApiFactory factory)
         await PurgeAsync(host);
 
         Assert.False(await UserExistsAsync(host, userId));
+    }
+
+    [Fact]
+    public async Task Cleanup_runs_at_startup_even_with_the_visitor_demo_turned_off()
+    {
+        using var host = factory.WithClock(_clock);
+        var (demo, userId) = await StartDemoAsync(host);
+        using (var logout = await demo.PostAsync("/api/auth/logout", content: null))
+            Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
+
+        // A API sobe de novo (deploy) com a demo desligada pelo operador e a limpeza de hora em hora: a primeira rodada
+        // é na subida, sem esperar o intervalo, e a conta que já venceu some mesmo com a demo desligada.
+        using var restarted = host.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Demo:Visitors:Enabled", "false");
+            builder.UseSetting("Demo:Visitors:CleanupIntervalMinutes", "60");
+        });
+        _ = restarted.Services;
+
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (await UserExistsAsync(restarted, userId) && DateTime.UtcNow < deadline)
+            await Task.Delay(100);
+        Assert.False(await UserExistsAsync(restarted, userId));
     }
 
     private static async Task<DemoPurgeResult> PurgeAsync(WebApplicationFactory<Program> host)

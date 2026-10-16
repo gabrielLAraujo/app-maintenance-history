@@ -112,12 +112,15 @@ public sealed class DemoSessionTests(GarageApiFactory factory)
         using (var logout = await client.PostAsync("/api/auth/logout", content: null))
             Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
 
-        // Quem guardou o cookie de antes do logout não continua na demo.
+        // Quem guardou o cookie de antes do logout não continua na demo: nem no /auth/me nem no resto da API.
         using var replay = host.CreateCookieClient();
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
-        request.Headers.Add("Cookie", oldCookies);
-        using var me = await replay.SendAsync(request);
-        Assert.Equal(HttpStatusCode.Unauthorized, me.StatusCode);
+        foreach (var path in new[] { "/api/auth/me", "/api/vehicles", "/api/garage/summary" })
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, path);
+            request.Headers.Add("Cookie", oldCookies);
+            using var response = await replay.SendAsync(request);
+            Assert.True(response.StatusCode == HttpStatusCode.Unauthorized, $"{path}: {(int)response.StatusCode}");
+        }
     }
 
     private static async Task<HttpClient> StartDemoAsync(WebApplicationFactory<Program> host)
