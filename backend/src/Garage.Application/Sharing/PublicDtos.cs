@@ -9,7 +9,8 @@ namespace Garage.Application.Sharing;
 
 /// <summary>
 /// Um veículo pelo link. <see cref="Plate"/> só com <c>IncludePlate</c>; <see cref="IncludesCosts"/> diz se os custos dos
-/// registros vêm preenchidos. <see cref="Records"/> é uma página do histórico (mais recentes primeiro).
+/// registros vêm preenchidos. <see cref="CoverPhoto"/> só se a foto de capa for pública. <see cref="Records"/> é uma
+/// página do histórico (mais recentes primeiro).
 /// </summary>
 public sealed record PublicVehicleDto(
     string Make,
@@ -23,6 +24,7 @@ public sealed record PublicVehicleDto(
     string? Plate,
     int CurrentOdometer,
     bool IncludesCosts,
+    PublicPhotoDto? CoverPhoto,
     IReadOnlyList<PublicRecordDto> Records,
     string? NextCursor);
 

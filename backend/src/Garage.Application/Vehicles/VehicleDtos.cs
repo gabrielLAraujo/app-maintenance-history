@@ -45,4 +45,5 @@ public sealed record VehicleDto(
     int CurrentOdometer,
     DateTimeOffset OdometerUpdatedAt,
     CatalogRefInput? Catalog,
+    Guid? CoverPhotoId,
     uint RowVersion);
