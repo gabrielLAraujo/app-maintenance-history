@@ -16,5 +16,7 @@ export function signedInRoutes(): Record<string, Handler> {
     },
     'GET /api/auth/config': () => json({ registrationEnabled: false, demoEnabled: false }),
     'GET /api/auth/me': () => json(account),
+    // O contador de vencidos do menu (AppShell) busca os lembretes em toda tela logada.
+    'GET /api/reminders/due': () => json([]),
   }
 }

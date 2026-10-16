@@ -1,4 +1,4 @@
-import { Layout } from '../components/Layout'
+import { AppShell } from '../components/AppShell'
 import { Landing } from '../pages/Landing'
 import { useAuth } from './AuthProvider'
 import { PageLoading } from './RouteGuards'
@@ -13,5 +13,5 @@ export function RootRoute() {
   if (loading) return <PageLoading />
   if (!user) return <Landing />
 
-  return <Layout />
+  return <AppShell />
 }

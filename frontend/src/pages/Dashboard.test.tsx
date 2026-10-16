@@ -90,9 +90,9 @@ describe('painel sem veículos', () => {
     // Lista de veículos: a de antes (vazia) e a de depois do exemplo.
     expect(count(calls, 'GET', '/api/vehicles')).toBe(2)
 
-    // Os lembretes só foram pedidos depois do exemplo (antes não havia o que listar) e já vieram preenchidos.
+    // Os lembretes foram pedidos de novo depois do exemplo e já vieram preenchidos.
     const seedAt = calls.findIndex((call) => call.method === 'POST' && call.path === '/api/demo/seed')
-    const dueAt = calls.findIndex((call) => call.path === '/api/reminders/due')
+    const dueAt = calls.findLastIndex((call) => call.path === '/api/reminders/due')
     expect(dueAt).toBeGreaterThan(seedAt)
     expect(await screen.findByText('Troca de óleo')).toBeInTheDocument()
   })

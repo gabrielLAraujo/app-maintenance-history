@@ -47,7 +47,7 @@ describe('menu do app', () => {
     renderApp('/')
 
     const nav = await screen.findByRole('navigation', { name: 'Principal' })
-    expect(await within(nav).findByRole('link', { name: 'Lembretes 1 vencido' })).toBeInTheDocument()
+    expect(await within(nav).findByRole('link', { name: 'Lembretes, 1 vencido' })).toBeInTheDocument()
   })
 
   it('sem vencidos, o link dos lembretes não tem contador', async () => {

@@ -86,6 +86,9 @@ const open = () => renderApp(`/vehicles/${id}?tab=reminders`)
 const bodyOf = (call: Call | undefined) => JSON.parse(call?.body ?? 'null')
 const writes = (calls: Call[], method: string) => calls.filter((call) => call.method === method && call.path.startsWith(remindersPath))
 
+/** Quantas vezes os lembretes vencidos e próximos (painel e contador do menu) foram buscados. */
+const dueFetches = (calls: Call[]) => calls.filter((call) => call.method === 'GET' && call.path === '/api/reminders/due').length
+
 beforeEach(() => {
   resetCookies()
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -227,6 +230,7 @@ describe('criar lembrete', () => {
 
     await typist.type(within(dialog).getByLabelText('Título'), '  Correia de acessórios ')
     await typist.type(within(dialog).getByLabelText('Intervalo em km'), '40.000')
+    const dueBefore = dueFetches(calls)
     await typist.click(within(dialog).getByRole('button', { name: 'Criar lembrete' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -241,9 +245,9 @@ describe('criar lembrete', () => {
       lastDoneOdometer: 215000,
     })
 
-    // A lista foi buscada de novo (o lembrete novo aparece) e o painel (Atenção) ficou marcado como velho.
+    // A lista foi buscada de novo (o lembrete novo aparece) e os lembretes do painel e do menu também.
     expect(await screen.findByText('Correia de acessórios')).toBeInTheDocument()
-    expect(queryClient.getQueryState(dueRemindersKey)?.isInvalidated).toBe(true)
+    await waitFor(() => expect(dueFetches(calls)).toBeGreaterThan(dueBefore))
   })
 
   it('só por meses: a km base é opcional e vai como null quando em branco', async () => {
@@ -372,6 +376,7 @@ describe('editar lembrete', () => {
     expect(within(dialog).getByLabelText('Km na última vez')).toHaveValue('205500')
 
     await typist.clear(within(dialog).getByLabelText('Intervalo em meses'))
+    const dueBefore = dueFetches(calls)
     await typist.click(within(dialog).getByRole('button', { name: 'Salvar alterações' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -383,7 +388,7 @@ describe('editar lembrete', () => {
       lastDoneOdometer: 205500,
       rowVersion: 3,
     })
-    expect(queryClient.getQueryState(dueRemindersKey)?.isInvalidated).toBe(true)
+    await waitFor(() => expect(dueFetches(calls)).toBeGreaterThan(dueBefore))
   })
 
   it('alterado em outra tela (409): avisa, busca de novo e o formulário recomeça com o que há no servidor', async () => {
@@ -428,13 +433,14 @@ describe('excluir lembrete', () => {
     expect(within(dialog).getByText('Fluido de freio')).toBeInTheDocument()
     expect(writes(calls, 'DELETE')).toHaveLength(0)
 
+    const dueBefore = dueFetches(calls)
     await typist.click(within(dialog).getByRole('button', { name: 'Excluir de vez' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(writes(calls, 'DELETE')).toHaveLength(1)
     expect(writes(calls, 'DELETE')[0].headers.get('X-XSRF-TOKEN')).toBe('test-token')
     await waitFor(() => expect(screen.queryByText('Fluido de freio')).not.toBeInTheDocument())
-    expect(queryClient.getQueryState(dueRemindersKey)?.isInvalidated).toBe(true)
+    await waitFor(() => expect(dueFetches(calls)).toBeGreaterThan(dueBefore))
   })
 
   it('cancelar não apaga nada', async () => {
