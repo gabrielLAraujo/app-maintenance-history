@@ -453,8 +453,9 @@ describe('cabeçalho: capa e indicadores', () => {
     renderApp(`/vehicles/${id}`)
 
     const numbers = await screen.findByRole('region', { name: 'Gastos do veículo' })
+    await within(numbers).findByText('Gasto total')
     const kpi = (label: string) => within(numbers).getByText(label).parentElement!
-    await waitFor(() => expect(kpi('Gasto total')).toHaveTextContent('R$ 6.883,80'))
+    expect(kpi('Gasto total')).toHaveTextContent('R$ 6.883,80')
     expect(kpi('Gasto total')).toHaveTextContent('5 registros desde nov/2024')
     expect(kpi('Manutenção')).toHaveTextContent('R$ 2.393,80')
     expect(kpi('Manutenção')).toHaveTextContent('4 serviços')
@@ -469,8 +470,8 @@ describe('cabeçalho: capa e indicadores', () => {
     renderApp(`/vehicles/${id}`)
 
     const numbers = await screen.findByRole('region', { name: 'Gastos do veículo' })
-    const costPerKm = within(numbers).getByText('Custo por km').parentElement!
-    await waitFor(() => expect(costPerKm).toHaveTextContent('—'))
+    const costPerKm = (await within(numbers).findByText('Custo por km')).parentElement!
+    expect(costPerKm).toHaveTextContent('—')
     expect(costPerKm).toHaveTextContent('a partir de 1.000 km acompanhados')
   })
 })
