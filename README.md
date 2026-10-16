@@ -64,7 +64,7 @@ Details, with diagrams of the request path and the domain, are in [`docs/ARQUITE
 
 ## Tests
 
-857 automated tests: 584 on the back end and 273 on the front end.
+862 automated tests: 585 on the back end and 277 on the front end.
 
 - **Domain:** mileage rules, chronology, reminder status, file signatures, the cover-photo rule.
 - **Integration:** against a real Postgres in a container — authentication, CSRF, rate limiting, every endpoint, spending summaries, the visitor demo (session, restrictions, cleanup).
