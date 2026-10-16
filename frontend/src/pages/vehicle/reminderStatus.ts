@@ -53,3 +53,27 @@ export function intervalSummary({
 
   return parts.length > 0 ? `A cada ${parts.join(' ou ')}` : ''
 }
+
+// Cada eixo do lembrete (km, tempo) vale por si: positivo falta, zero vence agora, negativo já passou.
+function axisText(remaining: number | null, ahead: (n: number) => string, now: string, late: (n: number) => string) {
+  if (remaining === null) return null
+  return remaining > 0 ? ahead(remaining) : remaining === 0 ? now : late(-remaining)
+}
+
+/** A situação numa linha curta, para listas ("faltam 800 km · faltam 12 dias", "300 km atrasado"). */
+export function statusSummary({ kmRemaining, daysRemaining }: Schemas['ReminderStatusDto']): string {
+  const km = axisText(
+    toNumber(kmRemaining),
+    (n) => `faltam ${formatKm(n)}`,
+    'vence agora',
+    (n) => `${formatKm(n)} atrasado`,
+  )
+  const days = axisText(
+    toNumber(daysRemaining),
+    (n) => `faltam ${plural(n, 'dia', 'dias')}`,
+    'vence hoje',
+    (n) => `${plural(n, 'dia', 'dias')} atrasado`,
+  )
+
+  return [km, days].filter(Boolean).join(' · ')
+}

@@ -16,6 +16,17 @@ export function useDueReminders() {
   })
 }
 
+/** Chave de todos os lembretes do usuário, inclusive os em dia (a página Lembretes). */
+export const allRemindersKey = ['reminders', 'all'] as const
+
+/** Todos os lembretes de todos os veículos, com o status, o pior estado primeiro. */
+export function useAllReminders() {
+  return useQuery({
+    queryKey: allRemindersKey,
+    queryFn: () => unwrap(api.GET('/api/reminders')),
+  })
+}
+
 /**
  * Chave dos lembretes de um veículo. Começa por `['vehicle', id]` (a convenção de `vehicleKeys`, que não se importa
  * aqui para não fazer ciclo): invalidar o veículo atualiza também a lista.
@@ -30,11 +41,12 @@ export function useVehicleReminders(vehicleId: string) {
   })
 }
 
-/** Criar, editar ou excluir um lembrete muda a lista do veículo e o "Atenção" do painel: os dois ficam velhos. */
+/** Criar, editar ou excluir um lembrete muda a lista do veículo, o painel e a página Lembretes: todos ficam velhos. */
 const invalidateReminders = (queryClient: QueryClient, vehicleId: string) =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: vehicleRemindersKey(vehicleId) }),
     queryClient.invalidateQueries({ queryKey: dueRemindersKey }),
+    queryClient.invalidateQueries({ queryKey: allRemindersKey }),
   ])
 
 /** O que a tela mostra está velho (editado em outra tela, ou já excluído): busca de novo, sem esperar o usuário. */

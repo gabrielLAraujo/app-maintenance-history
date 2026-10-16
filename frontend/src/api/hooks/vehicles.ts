@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { api } from '../client'
 import type { components } from '../schema'
 import { isConflict, problemOf, unwrap, unwrapEmpty } from '../unwrap'
-import { dueRemindersKey } from './reminders'
+import { allRemindersKey, dueRemindersKey } from './reminders'
 
 type Schemas = components['schemas']
 
@@ -55,6 +55,7 @@ export const invalidateVehicleLists = (queryClient: QueryClient) =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: vehicleKeys.all }),
     queryClient.invalidateQueries({ queryKey: dueRemindersKey }),
+    queryClient.invalidateQueries({ queryKey: allRemindersKey }),
   ])
 
 /** O veículo e tudo que é dele (registros, lembretes, valor FIPE), mais a lista do painel e os lembretes vencidos. */

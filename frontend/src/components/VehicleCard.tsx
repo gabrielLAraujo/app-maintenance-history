@@ -17,9 +17,11 @@ function Figure({ label, value }: { label: string; value: string }) {
 
 /**
  * Card de um veículo: capa (ou o convite para pôr uma, que leva ao histórico, onde as fotos estão), nome, placa, km,
- * gasto total e data do último serviço. O card inteiro é o link para a tela do veículo.
+ * gasto total e data do último serviço. O card inteiro é o link para a tela do veículo. O título é h3 (dentro da seção
+ * "Veículos" do painel) ou h2 (na página Veículos).
  */
-export function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
+export function VehicleCard({ vehicle, headingLevel = 3 }: { vehicle: Vehicle; headingLevel?: 2 | 3 }) {
+  const Heading = headingLevel === 2 ? 'h2' : 'h3'
   const fullName = `${vehicle.make} ${vehicle.model} ${vehicle.modelYear}`
 
   return (
@@ -55,7 +57,7 @@ export function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="truncate text-lg font-bold group-hover:text-amber-ink">{vehicle.displayName}</h3>
+            <Heading className="truncate text-lg font-bold group-hover:text-amber-ink">{vehicle.displayName}</Heading>
             {vehicle.displayName !== fullName && <p className="truncate text-sm text-muted">{fullName}</p>}
           </div>
           {vehicle.plate && <PlateChip plate={vehicle.plate} className="shrink-0" />}

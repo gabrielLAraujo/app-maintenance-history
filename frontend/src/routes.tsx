@@ -8,10 +8,12 @@ import { NotFound } from './pages/NotFound'
 import { PublicVehicle } from './pages/PublicVehicle'
 import { RecordDetail } from './pages/RecordDetail'
 import { RecordForm } from './pages/RecordForm'
+import { Reminders } from './pages/Reminders'
 import { Register } from './pages/Register'
 import { VehicleDetail } from './pages/VehicleDetail'
 import { VehicleEdit } from './pages/VehicleEdit'
 import { VehicleNew } from './pages/VehicleNew'
+import { Vehicles } from './pages/Vehicles'
 
 /**
  * Mapa de rotas do app. As telas logadas são filhas do AppShell (menu lateral e faixa da demo).
@@ -39,6 +41,8 @@ export const routes: RouteObject[] = [
           {
             element: <AppShell />,
             children: [
+              { path: '/vehicles', element: <Vehicles /> },
+              { path: '/reminders', element: <Reminders /> },
               { path: '/vehicles/new', element: <VehicleNew /> },
               { path: '/vehicles/:id', element: <VehicleDetail /> },
               { path: '/vehicles/:id/edit', element: <VehicleEdit /> },

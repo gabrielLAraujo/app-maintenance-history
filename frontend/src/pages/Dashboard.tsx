@@ -18,7 +18,8 @@ import { PageHeader } from '../components/PageHeader'
 import { Skeleton } from '../components/Skeleton'
 import { Spinner } from '../components/Spinner'
 import { VehicleCard } from '../components/VehicleCard'
-import { formatDate, formatKm, formatMoney, todayInSaoPaulo, toNumber } from '../lib/format'
+import { formatDate, formatMoney, todayInSaoPaulo, toNumber } from '../lib/format'
+import { statusSummary } from './vehicle/reminderStatus'
 
 type Schemas = components['schemas']
 
@@ -225,29 +226,6 @@ type Reminder = Schemas['DueReminderDto']
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
-// Cada eixo do lembrete (km, tempo) vale por si: positivo falta, zero vence agora, negativo já passou.
-function axisText(remaining: number | null, ahead: (n: number) => string, now: string, late: (n: number) => string) {
-  if (remaining === null) return null
-  return remaining > 0 ? ahead(remaining) : remaining === 0 ? now : late(-remaining)
-}
-
-function statusText({ kmRemaining, daysRemaining }: Schemas['ReminderStatusDto']): string {
-  const km = axisText(
-    toNumber(kmRemaining),
-    (n) => `faltam ${formatKm(n)}`,
-    'vence agora',
-    (n) => `${formatKm(n)} atrasado`,
-  )
-  const days = axisText(
-    toNumber(daysRemaining),
-    (n) => `faltam ${plural(n, 'dia', 'dias')}`,
-    'vence hoje',
-    (n) => `${plural(n, 'dia', 'dias')} atrasado`,
-  )
-
-  return [km, days].filter(Boolean).join(' · ')
-}
-
 const severity = { overdue: 0, dueSoon: 1, ok: 2 } satisfies Record<Schemas['ReminderState'], number>
 
 const appearance = {
@@ -333,7 +311,7 @@ function Attention() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{item.title}</span>
                   <span className="block text-[13px] text-ink-2">
-                    {item.vehicleName} · {statusText(item.status)}
+                    {item.vehicleName} · {statusSummary(item.status)}
                   </span>
                 </span>
                 <Badge tone={item.status.state} className="shrink-0 bg-surface">
