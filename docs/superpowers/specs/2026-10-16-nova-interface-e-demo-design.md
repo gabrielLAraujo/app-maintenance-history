@@ -1,7 +1,7 @@
 # Nova interface e demo por visitante — Design
 
 - **Data:** 2026-10-16
-- **Status:** aguardando revisão do Gabriel
+- **Status:** implementada na branch `feat/nova-interface` (PR aguardando a revisão do Gabriel)
 - **Relação com o roadmap:** melhoria transversal entre a Fase 1 (concluída) e a Fase 2. Não implementa nada da Fase 2 do roadmap (roadmap de modificações, colaboradores, PDF).
 - **Referência visual:** canvas "Garagem — nova interface" (artefato privado no claude.ai), aprovado em 16/10/2026: landing, painel, página do veículo, link público e direção visual.
 

@@ -206,18 +206,20 @@ Todos sob `/api`. A documentação interativa (`/scalar`) e o contrato (`/openap
 
 | Grupo | Rotas |
 |---|---|
-| Auth | `GET auth/antiforgery` · `GET auth/config` · `POST auth/register` · `POST auth/login` · `POST auth/logout` · `GET auth/me` |
-| Veículos | `GET/POST vehicles` · `GET/PUT/DELETE vehicles/{id}` · `POST vehicles/{id}/odometer` · `POST vehicles/{id}/odometer/correction` · `GET vehicles/{id}/fipe-price` |
+| Auth | `GET auth/antiforgery` · `GET auth/config` · `POST auth/register` · `POST auth/login` · `POST auth/demo` · `POST auth/logout` · `GET auth/me` |
+| Veículos | `GET/POST vehicles` · `GET/PUT/DELETE vehicles/{id}` · `POST vehicles/{id}/odometer` · `POST vehicles/{id}/odometer/correction` · `GET vehicles/{id}/fipe-price` · `PUT vehicles/{id}/cover-photo` · `GET vehicles/{id}/summary` |
+| Garagem | `GET garage/summary` (gasto do ano, meses e últimos serviços de todos os veículos) |
 | Registros | `GET/POST vehicles/{id}/records` · `GET/PUT/DELETE vehicles/{id}/records/{recordId}` |
 | Anexos | `POST vehicles/{id}/records/{recordId}/attachments` · `GET vehicles/{id}/attachments/{attId}/content` · `PATCH`/`DELETE vehicles/{id}/attachments/{attId}` |
-| Lembretes | `GET/POST vehicles/{id}/reminders` · `PUT/DELETE vehicles/{id}/reminders/{reminderId}` · `GET reminders/due` (painel) |
+| Lembretes | `GET/POST vehicles/{id}/reminders` · `PUT/DELETE vehicles/{id}/reminders/{reminderId}` · `GET reminders/due` (painel) · `GET reminders` (todos, inclusive os em dia) |
 | Compartilhar | `GET/POST vehicles/{id}/share-links` · `DELETE vehicles/{id}/share-links/{linkId}` |
 | Público | `GET public/{token}` · `GET public/{token}/attachments/{attId}` |
 | Catálogo | `GET catalog/{type}/makes` · `…/makes/{m}/models` · `…/models/{mo}/years` · `…/years/{y}` |
 | Demonstração | `POST demo/seed` (só com `Demo:Enabled`; só para contas sem veículos, senão 409 `demo.already_has_data`) |
 | Saúde | `GET health` (vivo) · `GET health/ready` (banco ok) |
 
-- `POST auth/register` e `POST demo/seed` só são mapeados com `Auth:AllowRegistration` e `Demo:Enabled` ligados; desligados, as rotas nem existem (404).
+- `POST auth/register`, `POST demo/seed` e `POST auth/demo` só são mapeados com `Auth:AllowRegistration`, `Demo:Enabled` e `Demo:Visitors:Enabled` ligados; desligados, as rotas nem existem (404).
+- **Demo por visitante** (`POST auth/demo`): cria uma conta sem senha (`IsDemo`, vence em `Demo:Visitors:TtlHours`), semeia os dados de exemplo nela e abre a sessão com validade absoluta igual à da conta. A conta demo não envia anexos (403 `demo.uploads_disabled`), tem até `Demo:Visitors:MaxVehicles` veículos (422 `demo.vehicle_limit_reached`) e vence no logout; o `DemoCleanupService` apaga as vencidas com tudo o que é delas (e os arquivos, depois do commit). Detalhes na spec `2026-10-16-nova-interface-e-demo-design.md`.
 - Fora de `/api`, `/openapi` e `/scalar`, a API devolve o `index.html` do front (seção 11); a SPA nunca responde por baixo de `/api`.
 - **Contrato:** todo endpoint declara `.WithName`, `.WithTags`, `.Produces<T>()` do sucesso e `.ProducesProblem()` de cada erro. O `OpenApiContractTests` reprova o endpoint que ficar sem nome, tag ou resposta de sucesso com schema (os de arquivo declaram só o tipo de mídia; os 204 não têm corpo). O front gera os tipos desse documento.
 
@@ -225,12 +227,12 @@ Todos sob `/api`. A documentação interativa (`/scalar`) e o contrato (`/openap
 
 | Projeto | O que cobre | Testes |
 |---|---|---|
-| `Garage.Domain.Tests` | Regras puras (km, cronologia, status de lembrete, assinatura de arquivo, Money, Plate…) | 197 |
-| `Garage.Api.IntegrationTests` | API de ponta a ponta com **Postgres real em container** (Testcontainers) e `WebApplicationFactory`: auth, CSRF, rate limit, cada endpoint, catálogo FIPE (com FIPE falsa), vazamentos na página pública (inclusive o token nos logs), cabeçalhos de segurança e de cache, configuração validada na partida, dados de exemplo, hosting do front e o contrato OpenAPI | 250 |
-| `Garage.Infrastructure.Tests` | Relógio em America/Sao_Paulo, armazenamento em disco, reprocessamento de fotos (sRGB), cliente e tradutor da FIPE | 74 |
+| `Garage.Domain.Tests` | Regras puras (km, cronologia, status de lembrete, assinatura de arquivo, Money, Plate, capa do veículo…) | 202 |
+| `Garage.Api.IntegrationTests` | API de ponta a ponta com **Postgres real em container** (Testcontainers) e `WebApplicationFactory`: auth, CSRF, rate limit, cada endpoint, catálogo FIPE (com FIPE falsa), vazamentos na página pública (inclusive o token nos logs), cabeçalhos de segurança e de cache, configuração validada na partida, dados de exemplo, capa, resumos de gastos, demo por visitante (sessão, restrições e limpeza), hosting do front e o contrato OpenAPI | 293 |
+| `Garage.Infrastructure.Tests` | Relógio em America/Sao_Paulo, armazenamento em disco, reprocessamento de fotos (sRGB), cliente e tradutor da FIPE | 85 |
 | `Garage.ArchitectureTests` | Domínio não depende de nada, Application não depende das camadas externas, Infrastructure não depende da Api, handlers e decorators `internal sealed` | 4 |
-| **Back-end** | `dotnet build` com 0 avisos (o build trata aviso como erro) e `dotnet test` verde | **525** |
-| Front (`frontend/`) | Vitest + Testing Library (jsdom): cliente HTTP e erros, autenticação, telas, formulários, FIPE, lembretes, compartilhamento, página pública | 231 (16 arquivos) |
+| **Back-end** | `dotnet build` com 0 avisos (o build trata aviso como erro) e `dotnet test` verde | **584** |
+| Front (`frontend/`) | Vitest + Testing Library (jsdom): cliente HTTP e erros, autenticação, landing e demo, menu, painel, telas, formulários, FIPE, lembretes, gastos, compartilhamento, dossiê público | 273 (22 arquivos) |
 
 Rodar: `cd backend && dotnet test` (precisa do Docker ligado para os testes de integração) e `cd frontend && npm test`.
 
@@ -238,7 +240,8 @@ Rodar: `cd backend && dotnet test` (precisa do Docker ligado para os testes de i
 
 - **Vite + React + TypeScript**, Tailwind v4, React Router, TanStack Query, React Hook Form + Zod.
 - Tipos da API gerados do OpenAPI (`npm run gen:api` com openapi-typescript + openapi-fetch), então o front quebra na compilação se o contrato mudar. O script lê a API local (`http://localhost:5081`; `API_URL` troca a origem), que precisa estar com `Auth:AllowRegistration` ligado para a rota de cadastro entrar no documento.
-- Telas: `/login` e `/register` (só para visitantes; o cadastro só abre se `GET auth/config` diz `registrationEnabled`), painel `/` (lembretes vencidos e a vencer), `/vehicles/new` (seletor FIPE, com preenchimento manual de reserva), `/vehicles/:id` (abas Histórico, Lembretes e Compartilhar), `/vehicles/:id/edit`, formulário e detalhe de registro (peças e anexos) e a página pública `/p/:token`, fora do login e do layout.
+- Telas (visual "Ficha técnica": grafite, âmbar, Archivo e IBM Plex Mono empacotadas): `/` é a landing para visitantes (com "Ver demo") e o painel para quem tem sessão (gasto do ano, lembretes, veículos com capa, gastos por mês, últimos serviços); `/login` e `/register` (só para visitantes; o cadastro só abre se `GET auth/config` diz `registrationEnabled`); `/vehicles` e `/reminders` (todos os lembretes, agrupados); `/vehicles/new` (seletor FIPE, com preenchimento manual de reserva); `/vehicles/:id` (capa, indicadores e abas Histórico, Lembretes, Gastos e Compartilhar); `/vehicles/:id/edit`; formulário e detalhe de registro (peças, anexos e "Usar como capa"); e o dossiê público `/p/:token`, fora do login e do menu.
+- **Carregamento sob demanda** (`lazyPages.ts`, `React.lazy` + `Suspense`): o arquivo principal leva só a landing, o dossiê público e o 404; a moldura do app, as telas logadas, o login e o cadastro baixam quando são abertos. O `index.html` pré-carrega a fonte dos títulos. No Lighthouse (celular), a landing foi de 85 para 90–92 em desempenho, com acessibilidade 100.
 - **Hospedagem pela API** (`SpaHosting`): o build do Vite vai para `wwwroot` na imagem, no mesmo domínio (cookie e antiforgery sem CORS). Os arquivos estáticos saem antes da autenticação (sem login, antiforgery nem rate limit); os arquivos de `/assets/*`, com hash no nome, levam `Cache-Control: public,max-age=31536000,immutable`, e `index.html`, ícones e o fallback levam `no-cache` (o fallback sempre, mesmo em `/assets/<sem extensão>`), para o deploy novo aparecer na hora. A página pública (`/p/...`) sai com `X-Robots-Tag: noindex`. Qualquer caminho sem extensão de arquivo (`/vehicles/abc` com F5, `/p/token`) devolve o `index.html` e o React Router resolve. O fallback nunca responde por baixo de `/api`, `/openapi` e `/scalar` (continuam dando o 404 da API), nem a arquivo inexistente ou método diferente de GET. Sem `wwwroot/index.html` (testes, desenvolvimento com o servidor do Vite) ele nem é mapeado, e em nenhum caso entra no documento OpenAPI.
 - Em desenvolvimento, `npm run dev` (Vite, :5173) faz proxy de `/api`, `/openapi` e `/scalar` para a API (:5081): o navegador fala com uma origem só, como em produção.
 - Botão "carregar dados de exemplo" (`POST /api/demo/seed`, só com `Demo:Enabled`): Civic EK 1998 com 6 registros (incluindo a modificação de coilover), lembretes em todos os estados e um link público; Gol 2019 com 2 registros.
@@ -249,6 +252,7 @@ Rodar: `cd backend && dotnet test` (precisa do Docker ligado para os testes de i
 |---|---|
 | Plano 1 — back-end (T1–T15: domínio, pipeline, auth, veículos, lembretes, registros, anexos, links públicos, catálogo FIPE, contrato OpenAPI e README) e as correções da revisão final | Concluído: 525 testes verdes e build sem avisos |
 | Plano 2 — front (login e cadastro, painel, veículos com FIPE, histórico e registros com peças e anexos, lembretes, compartilhamento, página pública, imagem única) | Concluído: 231 testes verdes |
+| Plano 3 — nova interface e demo por visitante (capa, resumos de gastos, `GET /reminders`, demo sem cadastro com limpeza, landing, menu lateral, painel, páginas de veículos e lembretes, dossiê público) | Na branch `feat/nova-interface`, aguardando revisão: 584 testes no back-end e 273 no front |
 | Produção | `garagem.frauchesgabriel.work` roda a imagem única com o front e o back-end dos dois planos |
 | Pendências | Rotina de backup dos volumes `/data/attachments` e `/data/keys` (o agendado do Coolify cobre só o banco); testar uma restauração do Postgres antes de cadastrar dados reais; depois de criar a conta, manter `Auth:AllowRegistration` desligado (spec, seção 12) |
 
@@ -263,6 +267,8 @@ Lidas de `appsettings*.json`, user-secrets (desenvolvimento) ou variáveis de am
 | `App:TimeZone` | `America/Sao_Paulo` | Fuso que define o "hoje" (`IAppClock`). Validado ao subir: fuso desconhecido, a API não sobe (a imagem precisa de ICU e tzdata) |
 | `Auth:AllowRegistration` | `false` | Mapeia `POST /api/auth/register`; desligado, a rota nem existe. Ligar só para criar a conta |
 | `Demo:Enabled` | `false` (`true` em Development) | Mapeia `POST /api/demo/seed` |
+| `Demo:Visitors:Enabled` | `false` | Mapeia `POST /api/auth/demo` e liga a limpeza das contas demo vencidas |
+| `Demo:Visitors:TtlHours` · `MaxActive` · `MaxVehicles` · `CleanupIntervalMinutes` | `24` · `100` · `5` · `60` | Validade da conta demo, teto de contas ativas (`0` fecha a demo), veículos por conta demo e intervalo da limpeza (`0` desliga) |
 | `DataProtection:KeysPath` | vazio | Pasta das chaves do Data Protection; vazia, nada é persistido. Produção: `/data/keys` |
 | `Storage:RootPath` | vazio | Pasta dos anexos, obrigatória: vazia, a API não sobe. Produção: `/data/attachments` |
 | `Fipe:BaseUrl` | `https://fipe.parallelum.com.br/api/v2/` | URL base da FIPE |
@@ -272,4 +278,5 @@ Lidas de `appsettings*.json`, user-secrets (desenvolvimento) ou variáveis de am
 | `RateLimits:PublicPhotosPerMinute` | `600` | Fotos da página pública (`GET public/{token}/attachments/{attId}`), por IP |
 | `RateLimits:CatalogPerMinute` | `30` | Catálogo, por usuário |
 | `RateLimits:UploadsPerMinute` | `30` | Upload de anexos, por usuário |
+| `RateLimits:DemoPerHour` | `5` | `POST /api/auth/demo`, por IP e por hora |
 | `MIGRATE_ON_START` | `true` | Só no contêiner: `false` faz o entrypoint pular as migrations |

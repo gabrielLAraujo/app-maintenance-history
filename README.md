@@ -1,80 +1,98 @@
-# Garagem — histórico de manutenção e modificações de veículos
+# Garagem — maintenance and modification history for your car
 
-Aplicação web para manter o histórico completo de um carro: manutenções e modificações com peças e custos, fotos e notas fiscais, lembretes de manutenção preventiva por km ou tempo e um link público, só de leitura, para mostrar o histórico a um comprador, mecânico ou amigo.
+**[Português](README.pt-BR.md)**
 
-Nasceu de uma necessidade real: documentar o meu Honda Civic EK 1998, em restauração, e para estudar arquitetura de software em .NET.
+A web app that keeps the complete history of a car: maintenance and modifications with parts and costs, photos and invoices, preventive reminders by mileage or time, spending per category and per month, and a read-only public link to show the history to a buyer, a mechanic or a friend.
 
-- **No ar:** https://garagem.frauchesgabriel.work (uso pessoal; o cadastro de novas contas está fechado)
-- **Como funciona por dentro:** [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md)
-- **Rodar localmente:** [`backend/README.md`](backend/README.md)
+It started from a real need — documenting my 1998 Honda Civic EK, under restoration — and became a study in .NET software architecture.
 
-## O que o app faz
+- **Live:** https://garagem.frauchesgabriel.work — click **"Ver demo"**: no sign-up, you get your own copy of two example cars, deleted after 24 hours.
+- **How it works inside:** [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) (Portuguese)
+- **Run it locally:** [`backend/README.md`](backend/README.md) (Portuguese)
 
-- **Veículos** escolhidos pelo catálogo da **FIPE** (marca → modelo → ano), com preenchimento manual quando a FIPE está fora do ar.
-- **Registros** de manutenção e de modificação com peças, quantidades, preços, mão de obra e "peça original substituída".
-- **Regras de km** que mantêm o histórico coerente: a km não volta, e cada registro precisa caber entre o anterior e o seguinte.
-- **Anexos**: fotos tiradas na hora pelo celular e PDFs. Tipo detectado pelos bytes, EXIF/GPS removidos, imagens convertidas para sRGB e redimensionadas.
-- **Lembretes** por km, por tempo ou "o que vier primeiro", com painel de vencidos e próximos.
-- **Link público** só de leitura, por lista de campos permitidos: custos e placa só quando o dono permite. Chassi, documentos, observações e lembretes nunca aparecem.
-- **Dados de exemplo** com um clique, para ver o app funcionando: um Civic EK com histórico completo e um Gol. As fotos vêm do Wikimedia Commons, com licenças livres; os créditos estão em [`CREDITS.md`](backend/src/Garage.Infrastructure/Demo/Assets/CREDITS.md).
+![Landing page](docs/screenshots/landing.png)
+
+## What it does
+
+- **Vehicles** picked from Brazil's **FIPE** catalog (make → model → year), with manual entry when FIPE is down, and a **cover photo** chosen among the photos already attached to the car.
+- **Records** of maintenance and modifications with parts, quantities, prices, labor and the "original part replaced".
+- **Mileage rules** that keep the history consistent: mileage never goes back, and each record must fit between the previous and the next one.
+- **Attachments**: photos taken on the phone and PDFs. Type detected from the bytes, EXIF/GPS stripped, images converted to sRGB and resized.
+- **Reminders** by mileage, by time, or "whichever comes first", grouped as overdue, due soon and up to date.
+- **Spending**: total, maintenance vs. modification, per category, per month and cost per km (only after 1,000 km tracked, so the number is not misleading).
+- **Public link** for buyers, built from an allowlist: costs and plate only when the owner allows it; VIN, documents, invoices, notes and reminders never show up.
+- **Visitor demo**: one click creates an isolated, password-less account with the example data (a Civic EK with a full history and a Gol). It cannot upload files, is limited to 5 vehicles, and a background job deletes it, with its files, after 24 hours. Example photos come from Wikimedia Commons under free licenses ([credits](backend/src/Garage.Infrastructure/Demo/Assets/CREDITS.md)).
+
+| Dashboard | Vehicle |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Vehicle page](docs/screenshots/vehicle.png) |
+
+| Spending tab | Public link (buyer's view) |
+|---|---|
+| ![Spending tab](docs/screenshots/spending.png) | ![Public link](docs/screenshots/public.png) |
+
+<p align="center"><img src="docs/screenshots/mobile.png" alt="Dashboard on a phone" width="300"></p>
 
 ## Stack
 
-| Camada | Tecnologias |
+| Layer | Technologies |
 |---|---|
-| Back-end | .NET 10, ASP.NET Core Minimal APIs, EF Core + PostgreSQL, ASP.NET Identity (cookie + antiforgery), FluentValidation, Serilog, Magick.NET, OpenAPI + Scalar |
-| Front-end | React 19, TypeScript, Vite, Tailwind CSS v4, TanStack Query, React Hook Form + Zod, tipos gerados do OpenAPI |
-| Testes | xUnit, Testcontainers (Postgres real), NetArchTest, Vitest + Testing Library |
-| Infra | Docker (imagem única: a API serve o front), Coolify numa VPS, Traefik com HTTPS, Cloudflare DNS |
+| Back end | .NET 10, ASP.NET Core Minimal APIs, EF Core + PostgreSQL, ASP.NET Identity (cookie + antiforgery), FluentValidation, Serilog, Magick.NET, OpenAPI + Scalar |
+| Front end | React 19, TypeScript, Vite, Tailwind CSS v4, TanStack Query, React Hook Form + Zod, types generated from OpenAPI |
+| Tests | xUnit, Testcontainers (real Postgres), NetArchTest, Vitest + Testing Library |
+| Infra | Docker (single image: the API serves the front end), Coolify on a VPS, Traefik with HTTPS, Cloudflare DNS |
 
-## Arquitetura em 30 segundos
+## Architecture in 30 seconds
 
 ```mermaid
 flowchart TB
-    API["Garage.Api — endpoints finos, auth, middlewares"] --> APP
+    API["Garage.Api — thin endpoints, auth, middlewares"] --> APP
     API --> INF
-    APP["Garage.Application — casos de uso (CQRS), validação, portas"] --> DOM
-    INF["Garage.Infrastructure — EF Core, Identity, disco, FIPE"] --> APP
-    INF --> DOM["Garage.Domain — agregados, regras, eventos"]
+    APP["Garage.Application — use cases (CQRS), validation, ports"] --> DOM
+    INF["Garage.Infrastructure — EF Core, Identity, disk, FIPE, demo cleanup"] --> APP
+    INF --> DOM["Garage.Domain — aggregates, rules, events"]
 ```
 
-- **Clean Architecture + DDD tático + CQRS**, com um despachante próprio (sem MediatR) e decorators de log, validação e transação.
-- **`Result`/`Error` em vez de exceções**, convertidos em ProblemDetails (RFC 9457) com código estável.
-- **Eventos de domínio** despachados na mesma transação: lançar um registro cumpre os lembretes escolhidos atomicamente.
-- **Concorrência otimista** com o `xmin` do Postgres.
-- **FIPE como camada anticorrupção**, com cache em banco, resiliência e fallback.
-- **Fronteiras entre camadas garantidas por testes de arquitetura.**
+- **Clean Architecture + tactical DDD + CQRS**, with a hand-written dispatcher (no MediatR) and logging, validation and transaction decorators.
+- **`Result`/`Error` instead of exceptions**, mapped to ProblemDetails (RFC 9457) with stable error codes.
+- **Domain events** dispatched in the same transaction: adding a record fulfills the chosen reminders atomically.
+- **Optimistic concurrency** with Postgres `xmin`.
+- **FIPE as an anti-corruption layer**, with a database cache, resilience and fallback.
+- **Layer boundaries enforced by architecture tests.**
 
-Os detalhes, com diagramas do caminho de uma requisição e do domínio, estão em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+Details, with diagrams of the request path and the domain, are in [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 
-## Testes
+## Tests
 
-773 testes automatizados: 542 no back-end e 231 no front-end.
+857 automated tests: 584 on the back end and 273 on the front end.
 
-- **Domínio:** regras de km, cronologia, status de lembrete, assinatura de arquivo.
-- **Integração:** com Postgres real em container, cobre autenticação, CSRF, rate limit e cada endpoint.
-- **Vazamentos na página pública:** o JSON é comparado contra uma lista de campos proibidos.
-- **Contrato OpenAPI:** garante o contrato que gera os tipos do front.
+- **Domain:** mileage rules, chronology, reminder status, file signatures, the cover-photo rule.
+- **Integration:** against a real Postgres in a container — authentication, CSRF, rate limiting, every endpoint, spending summaries, the visitor demo (session, restrictions, cleanup).
+- **Public-link leaks:** the JSON is checked against a list of forbidden fields.
+- **OpenAPI contract:** protects the contract the front-end types are generated from.
 
-## Como este projeto foi construído
+## How this project was built
 
-O projeto foi feito com **agentes de IA (Claude)** num fluxo orientado por especificação, em poucos dias (10 a 12/10/2026). Os commits trazem `Co-Authored-By` de propósito: é o registro honesto de como o código foi produzido.
+The project was built with **AI agents (Claude)** in a spec-driven workflow: the MVP in a few days (Oct 10–12, 2026) and the new interface with the visitor demo on Oct 16, 2026. Commits carry `Co-Authored-By` on purpose: it is the honest record of how the code was produced.
 
-**O que foi meu:**
-- O produto e as regras de negócio, tiradas do uso real no meu carro: o que conta como km válida, o que pode aparecer num link público, como os lembretes vencem.
-- As escolhas de arquitetura e de stack, com o trade-off de cada uma registrado na spec: Clean Architecture + DDD + CQRS, Minimal APIs, FIPE desde o MVP, Coolify na VPS.
-- A revisão e as decisões em cada etapa, inclusive o que foi aceito ou mudado nas revisões.
+**What was mine:**
+- The product and the business rules, taken from real use on my car: what counts as valid mileage, what may appear on a public link, how reminders come due, what the demo may and may not do.
+- The architecture and stack choices, with the trade-off of each one recorded in the specs: Clean Architecture + DDD + CQRS, Minimal APIs, FIPE from the MVP, Coolify on a VPS, one demo account per visitor instead of a shared one.
+- The review and the decisions at every step, including what was accepted or changed in reviews.
 
-**Como o trabalho foi conduzido:**
-1. **Spec de design** com regras de domínio numeradas, endpoints, erros, segurança e testes: [`docs/superpowers/specs/`](docs/superpowers/specs/).
-2. **Planos de implementação** quebrados em tarefas pequenas, com interfaces e testes definidos antes do código: [`docs/superpowers/plans/`](docs/superpowers/plans/).
-3. **Implementação por tarefa com TDD:** teste falhando primeiro, depois o código.
-4. **Revisão independente** de cada tarefa sensível (autenticação, anexos, link público, deploy) e uma **revisão final** do código inteiro, seguida de uma rodada de correções e de uma nova revisão.
+**How the work was run:**
+1. **Design spec** with numbered domain rules, endpoints, errors, security and tests: [`docs/superpowers/specs/`](docs/superpowers/specs/).
+2. **Implementation plans** broken into small tasks, with interfaces and tests defined before the code: [`docs/superpowers/plans/`](docs/superpowers/plans/).
+3. **Task-by-task implementation with TDD:** a failing test first, then the code.
+4. **Review:** independent review of sensitive tasks (authentication, attachments, public link, deploy) and a **final review** of the whole branch, followed by a round of fixes.
+
+**The new interface (Oct 16):** HTML mockups approved first (landing, dashboard, vehicle page, public link, visual direction "Ficha técnica"), then a spec and a 19-task plan: the back end for the cover photo, spending summaries and the visitor demo, then the front end screen by screen, with each screen checked in screenshots at desktop and phone widths.
 
 ## Roadmap
 
-| Fase | Conteúdo |
+| Phase | Content |
 |---|---|
-| **1 — MVP** (concluída) | Login, veículos com FIPE, registros com peças, anexos, lembretes, link público |
-| 2 — Planejar e colaborar | Roadmap de modificações com orçamento, linha do tempo antes/depois, dossiê em PDF, colaboradores (coproprietário, mecânico) |
-| 3 — Dados e comunidade | Planos de revisão por modelo, perfil público do build, relatórios de custo, abastecimento, IA lendo nota fiscal |
+| **1 — MVP** (done) | Login, vehicles with FIPE, records with parts, attachments, reminders, public link |
+| **New interface** (done) | Landing with visitor demo, dashboard with spending, cover photos, buyer-oriented public link |
+| 2 — Plan and collaborate | Modification roadmap with budget, before/after timeline, PDF dossier, collaborators (co-owner, mechanic) |
+| 3 — Data and community | Service plans per model, public build profile, cost reports, fuel log, AI reading invoices |
