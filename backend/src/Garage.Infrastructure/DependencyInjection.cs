@@ -53,6 +53,9 @@ public static class DependencyInjection
                 + "CleanupIntervalMinutes (0 desliga a limpeza automática), zero ou positivos.")
             .ValidateOnStart();
         services.AddScoped<DemoAccountService>();
+        // Sempre registrado: confere Enabled e o intervalo ao subir, lendo as opções (e não a configuração no registro), então
+        // valem também as configurações aplicadas depois, como as dos testes.
+        services.AddHostedService<DemoCleanupService>();
         services.AddSingleton<IDemoLimits, DemoLimits>();
 
         services.AddGarageDataProtection(config);

@@ -1,8 +1,11 @@
 using Garage.Application.Abstractions.Ports;
+using Garage.Domain.Attachments;
+using Garage.Domain.Vehicles;
 using Garage.Infrastructure.Identity;
 using Garage.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Garage.Infrastructure.Demo;
@@ -11,11 +14,13 @@ namespace Garage.Infrastructure.Demo;
 /// Contas de visitante da demo (spec 3): sem senha, com validade, e apagadas com tudo o que é delas (veículos, registros,
 /// anexos e links saem em cascata pelo banco). Só mexe em contas com <see cref="AppUser.IsDemo"/>.
 /// </summary>
-public sealed class DemoAccountService(
+public sealed partial class DemoAccountService(
     UserManager<AppUser> users,
     GarageDbContext db,
+    IFileStorage storage,
     IAppClock clock,
-    IOptions<DemoVisitorOptions> options)
+    IOptions<DemoVisitorOptions> options,
+    ILogger<DemoAccountService> logger)
 {
     private const string EmailDomain = "demo.garagem.invalid";
 
@@ -61,9 +66,59 @@ public sealed class DemoAccountService(
             .ExecuteUpdateAsync(setters => setters.SetProperty(user => user.DemoExpiresAt, now), ct);
     }
 
+    /// <summary>
+    /// Um lote da limpeza (spec 3.3): até <paramref name="batchSize"/> contas demo vencidas saem com tudo o que é delas (o
+    /// banco apaga veículos, registros, anexos e links em cascata) e, depois do commit, os arquivos dos anexos, um por vez
+    /// (a falha de um vai para o log e não impede os outros). Idempotente: no pior caso sobra arquivo sem linha.
+    /// </summary>
+    public async Task<DemoPurgeResult> PurgeExpiredAsync(int batchSize, CancellationToken ct)
+    {
+        var now = clock.Now;
+        var expired = await db.Users
+            .Where(user => user.IsDemo && user.DemoExpiresAt <= now)
+            .OrderBy(user => user.DemoExpiresAt)
+            .Select(user => user.Id)
+            .Take(batchSize)
+            .ToListAsync(ct);
+        if (expired.Count == 0)
+            return new DemoPurgeResult(0, 0);
+
+        var keys = await db.Set<Attachment>()
+            .Where(attachment => db.Set<Vehicle>().Any(vehicle => vehicle.Id == attachment.VehicleId && expired.Contains(vehicle.OwnerId)))
+            .Select(attachment => attachment.StorageKey)
+            .ToListAsync(ct);
+
+        var accounts = await db.Users
+            .Where(user => expired.Contains(user.Id) && user.IsDemo && user.DemoExpiresAt <= now)
+            .ExecuteDeleteAsync(ct);
+
+        // As linhas já saíram: os arquivos vão até o fim, mesmo com a parada do serviço.
+        var files = 0;
+        foreach (var key in keys)
+        {
+            try
+            {
+                await storage.DeleteAsync(key, CancellationToken.None);
+                files++;
+            }
+            catch (Exception ex)
+            {
+                LogFileDeleteFailed(logger, key, ex);
+            }
+        }
+
+        return new DemoPurgeResult(accounts, files);
+    }
+
     /// <summary>Apaga a conta demo e, em cascata, tudo o que é dela. Conta real não é tocada.</summary>
     public async Task DeleteAsync(Guid userId, CancellationToken ct) =>
         await db.Users
             .Where(user => user.Id == userId && user.IsDemo)
             .ExecuteDeleteAsync(ct);
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Demo cleanup could not delete the file {StorageKey}")]
+    private static partial void LogFileDeleteFailed(ILogger logger, string storageKey, Exception exception);
 }
+
+/// <summary>Quantas contas demo e quantos arquivos um lote da limpeza removeu.</summary>
+public sealed record DemoPurgeResult(int Accounts, int Files);
