@@ -69,7 +69,7 @@ public sealed class OpenApiContractTests(GarageApiFactory factory) : IDisposable
     {
         // Antiforgery ausente ou inválido dá 400 em toda escrita (POST, PUT, PATCH, DELETE) sob /api, e um corpo inválido
         // (JSON quebrado, campo com tipo errado) também.
-        string[] writes = ["post", "put", "patch", "delete"];
+        string[] writes = ["POST", "PUT", "PATCH", "DELETE"];
         using var document = await LoadDocumentAsync(factory.CreateClient());
         var failures = Operations(document.RootElement)
             .Where(entry => writes.Contains(entry.Method))
