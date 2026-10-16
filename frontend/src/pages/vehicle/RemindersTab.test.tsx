@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { dueRemindersKey } from '../../api/hooks/reminders'
 import { json, mockFetch, noContent, problem, resetCookies, type Call, type Handler } from '../../test/fetch-mock'
 import { renderApp } from '../../test/renderApp'
-import { signedInRoutes } from '../../test/signedIn'
+import { signedInRoutes, vehicleSummaryRoute } from '../../test/signedIn'
 
 // Relógio parado em 12/10/2026 às 12h em Brasília: "hoje", "há 30 dias" e "km atualizada em" ficam determinísticos.
 const NOW = new Date('2026-10-12T15:00:00Z')
@@ -74,6 +74,7 @@ const brake = {
 function fakeApi(routes: Record<string, Handler> = {}) {
   return mockFetch({
     ...signedInRoutes(),
+    ...vehicleSummaryRoute(id),
     'GET /api/vehicles': () => json([]),
     'GET /api/reminders/due': () => json([]),
     [`GET /api/vehicles/${id}`]: () => json(civic),

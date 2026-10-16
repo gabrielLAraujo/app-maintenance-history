@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { json, mockFetch, noContent, problem, resetCookies, type Call, type Handler } from '../../test/fetch-mock'
 import { renderApp } from '../../test/renderApp'
-import { signedInRoutes } from '../../test/signedIn'
+import { signedInRoutes, vehicleSummaryRoute } from '../../test/signedIn'
 
 // Relógio parado em 12/10/2026 às 12h em Brasília: "hoje" e as datas de validade ficam determinísticas.
 const NOW = new Date('2026-10-12T15:00:00Z')
@@ -66,6 +66,7 @@ const expired = link('D', {
 function fakeApi(routes: Record<string, Handler> = {}) {
   return mockFetch({
     ...signedInRoutes(),
+    ...vehicleSummaryRoute(id),
     'GET /api/vehicles': () => json([]),
     'GET /api/reminders/due': () => json([]),
     [`GET /api/vehicles/${id}`]: () => json(civic),

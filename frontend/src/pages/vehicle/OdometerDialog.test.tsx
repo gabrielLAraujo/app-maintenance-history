@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { json, mockFetch, noContent, problem, resetCookies, type Call, type Handler } from '../../test/fetch-mock'
 import { renderApp } from '../../test/renderApp'
-import { signedInRoutes } from '../../test/signedIn'
+import { signedInRoutes, vehicleSummaryRoute } from '../../test/signedIn'
 
 const id = '0198a1c2-0000-7000-8000-0000000000c1'
 
@@ -32,6 +32,7 @@ const summary = { id, displayName: 'Civic EK', make: 'Honda', model: 'Civic', mo
 function fakeApi(routes: Record<string, Handler> = {}) {
   return mockFetch({
     ...signedInRoutes(),
+    ...vehicleSummaryRoute(id),
     'GET /api/vehicles': () => json([summary]),
     'GET /api/reminders/due': () => json([]),
     [`GET /api/vehicles/${id}`]: () => json(civicDto),

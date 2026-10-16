@@ -18,6 +18,32 @@ export const emptyGarageSummary = {
   firstRecordDate: null,
 }
 
+/** Os 12 meses que terminam em outubro de 2026 (o "hoje" dos testes), todos sem gasto. */
+export const trailingMonths = (costs: Record<string, number> = {}) =>
+  Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(Date.UTC(2025, 10 + index, 1))
+    const month = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+    return { month, cost: costs[month] ?? 0 }
+  })
+
+/** Resumo de gastos de um veículo sem registros. */
+export const emptyVehicleSummary = {
+  totalCost: 0,
+  maintenance: { cost: 0, count: 0 },
+  modification: { cost: 0, count: 0 },
+  firstRecordDate: null,
+  kmTracked: null,
+  costPerKm: null,
+  byCategory: [],
+  byMonth: trailingMonths(),
+  lastRecord: null,
+}
+
+/** A rota do resumo de gastos do veículo, que a tela do veículo busca para os indicadores. */
+export const vehicleSummaryRoute = (vehicleId: string, summary: unknown = emptyVehicleSummary): Record<string, Handler> => ({
+  [`GET /api/vehicles/${vehicleId}/summary`]: () => json(summary),
+})
+
 /** As rotas de sessão de quem já está logado (token antiforgery, config e /me): os testes de tela somam as suas. */
 export function signedInRoutes(): Record<string, Handler> {
   return {

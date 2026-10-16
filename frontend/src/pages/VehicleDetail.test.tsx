@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { json, mockFetch, problem, resetCookies, type Call, type Handler } from '../test/fetch-mock'
 import { renderApp } from '../test/renderApp'
-import { signedInRoutes } from '../test/signedIn'
+import { signedInRoutes, trailingMonths, vehicleSummaryRoute } from '../test/signedIn'
 
 const id = '0198a1c2-0000-7000-8000-0000000000c1'
 const recordsPath = `/api/vehicles/${id}/records`
@@ -30,6 +30,26 @@ const civicDto = {
 }
 
 const linkedCivic = { ...civicDto, catalog: { type: 'car', fipeCode: '005340-6', fipeYearCode: '1998-1' } }
+
+const coverId = '0198a1c2-0000-7000-8000-0000000000f1'
+
+/** O resumo do Civic de exemplo (6.883,80 em cinco registros, 23.400 km acompanhados). */
+const civicSummary = {
+  totalCost: 6883.8,
+  maintenance: { cost: 2393.8, count: 4 },
+  modification: { cost: 4490, count: 1 },
+  firstRecordDate: '2024-11-11',
+  kmTracked: 23400,
+  costPerKm: 0.29,
+  byCategory: [
+    { category: 'suspension', cost: 4490 },
+    { category: 'engine', cost: 1275.8 },
+    { category: 'bodyPaint', cost: 850 },
+    { category: 'brakes', cost: 268 },
+  ],
+  byMonth: trailingMonths({ '2025-12': 4490, '2026-06': 270.9, '2026-10': 850 }),
+  lastRecord: { id: 'rec5', title: 'Repintura do para-choque dianteiro', date: '2026-10-02' },
+}
 
 /** Um registro da lista, com valores de um Civic de verdade; `extra` troca o que o teste quer destacar. */
 const item = (n: number, extra: Record<string, unknown> = {}) => ({
@@ -65,6 +85,7 @@ function fakeApi(routes: Record<string, Handler> = {}) {
     // As outras abas (a F5 trouxe os painéis reais): aqui só importa que existam e abram.
     [`GET /api/vehicles/${id}/reminders`]: () => json([]),
     [`GET /api/vehicles/${id}/share-links`]: () => json([]),
+    ...vehicleSummaryRoute(id, civicSummary),
     ...routes,
   })
 }
@@ -91,7 +112,8 @@ describe('histórico do veículo', () => {
 
     const first = rows[0]
     expect(within(first).getByRole('heading', { level: 3, name: 'Troca de óleo e filtro' })).toBeInTheDocument()
-    expect(within(first).getByText(/20\/09\/2026/)).toBeInTheDocument()
+    // Linha do tempo: data e km em mono, à esquerda do cartão do serviço.
+    expect(within(first).getByText('20/09/2026')).toHaveClass('font-mono')
     expect(within(first).getByText('214.000 km')).toBeInTheDocument()
     expect(within(first).getByText('Manutenção')).toBeInTheDocument()
     expect(within(first).getByText('Motor')).toBeInTheDocument()
@@ -242,13 +264,13 @@ describe('histórico do veículo', () => {
 })
 
 describe('abas do veículo', () => {
-  it('três abas, Histórico aberta; clicar em outra troca o painel e põe a aba no endereço', async () => {
+  it('quatro abas, Histórico aberta; clicar em outra troca o painel e põe a aba no endereço', async () => {
     fakeApi()
     const { router } = renderApp(`/vehicles/${id}`)
     const typist = userEvent.setup()
 
     const tabs = await screen.findAllByRole('tab')
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Histórico', 'Lembretes', 'Compartilhar'])
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Histórico', 'Lembretes', 'Gastos', 'Compartilhar'])
     expect(screen.getByRole('tab', { name: 'Histórico' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tablist')).toHaveAccessibleName('Seções do veículo')
     expect(screen.getByRole('tabpanel')).toHaveAccessibleName('Histórico')
@@ -402,5 +424,53 @@ describe('cabeçalho: km e valor FIPE', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Civic EK' })).toBeInTheDocument()
     expect(await historyList()).toBeInTheDocument()
     expect(screen.queryByText('Veículo não encontrado')).not.toBeInTheDocument()
+  })
+})
+
+describe('cabeçalho: capa e indicadores', () => {
+  it('com capa, mostra a foto do veículo', async () => {
+    fakeApi({ [`GET /api/vehicles/${id}`]: () => json({ ...civicDto, coverPhotoId: coverId }) })
+    renderApp(`/vehicles/${id}`)
+
+    expect(await screen.findByRole('img', { name: 'Civic EK' })).toHaveAttribute(
+      'src',
+      `/api/vehicles/${id}/attachments/${coverId}/content`,
+    )
+    expect(screen.queryByText('Adicionar foto de capa')).not.toBeInTheDocument()
+  })
+
+  it('sem capa, convida a escolher uma foto no histórico', async () => {
+    fakeApi({ [`GET /api/vehicles/${id}`]: () => json({ ...civicDto, coverPhotoId: null }) })
+    renderApp(`/vehicles/${id}?tab=reminders`)
+
+    const invite = await screen.findByRole('link', { name: /Adicionar foto de capa/ })
+    expect(invite).toHaveAttribute('href', `/vehicles/${id}`)
+    expect(screen.queryByRole('img', { name: 'Civic EK' })).not.toBeInTheDocument()
+  })
+
+  it('mostra gasto total, manutenção, modificações e custo por km do resumo', async () => {
+    fakeApi()
+    renderApp(`/vehicles/${id}`)
+
+    const numbers = await screen.findByRole('region', { name: 'Gastos do veículo' })
+    const kpi = (label: string) => within(numbers).getByText(label).parentElement!
+    await waitFor(() => expect(kpi('Gasto total')).toHaveTextContent('R$ 6.883,80'))
+    expect(kpi('Gasto total')).toHaveTextContent('5 registros desde nov/2024')
+    expect(kpi('Manutenção')).toHaveTextContent('R$ 2.393,80')
+    expect(kpi('Manutenção')).toHaveTextContent('4 serviços')
+    expect(kpi('Modificações')).toHaveTextContent('R$ 4.490,00')
+    expect(kpi('Modificações')).toHaveTextContent('1 modificação')
+    expect(kpi('Custo por km')).toHaveTextContent('R$ 0,29')
+    expect(kpi('Custo por km')).toHaveTextContent('em 23.400 km acompanhados')
+  })
+
+  it('sem km suficiente, o custo por km fica em "—" e diz a partir de quando aparece', async () => {
+    fakeApi(vehicleSummaryRoute(id, { ...civicSummary, kmTracked: 800, costPerKm: null }))
+    renderApp(`/vehicles/${id}`)
+
+    const numbers = await screen.findByRole('region', { name: 'Gastos do veículo' })
+    const costPerKm = within(numbers).getByText('Custo por km').parentElement!
+    await waitFor(() => expect(costPerKm).toHaveTextContent('—'))
+    expect(costPerKm).toHaveTextContent('a partir de 1.000 km acompanhados')
   })
 })
