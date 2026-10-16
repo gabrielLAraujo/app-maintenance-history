@@ -2,6 +2,7 @@ using FluentValidation;
 using Garage.Application.Abstractions.Behaviors;
 using Garage.Application.Abstractions.Events;
 using Garage.Application.Abstractions.Messaging;
+using Garage.Application.Reminders;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Garage.Application;
@@ -33,6 +34,7 @@ public static class DependencyInjection
         services.TryDecorate(typeof(IQueryHandler<,>), typeof(LoggingQueryDecorator<,>));
 
         services.AddScoped<ISender, Sender>();
+        services.AddScoped<UserReminderStatuses>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
 
         return services;
