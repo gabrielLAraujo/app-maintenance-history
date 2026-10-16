@@ -210,6 +210,29 @@ public sealed class DemoSeedTests(GarageApiFactory factory)
         await AssertOnlyCivicRemindersAreDueAsync(client);
     }
 
+    [Fact]
+    public async Task Demo_seed_sets_the_civic_cover_photo()
+    {
+        factory.Clock.SetUtcNow(Now);
+        using var client = await factory.CreateUserClientAsync();
+        await SeedAsync(client);
+        var civicId = await FindVehicleIdAsync(client, "Civic EK");
+        var golId = await FindVehicleIdAsync(client, "Volkswagen Gol 2019");
+
+        var civic = await client.GetVehicleAsync(civicId);
+        var coverId = civic.GetProperty("coverPhotoId").GetGuid();
+
+        // A capa é a foto da frente do Civic, anexada à repintura do para-choque.
+        var records = (await client.GetRecordsAsync(civicId)).GetProperty("items").EnumerateArray();
+        var bodywork = records.Single(record => record.GetProperty("title").GetString() == "Repintura do para-choque dianteiro");
+        var detail = await client.GetRecordAsync(civicId, bodywork.GetProperty("id").GetGuid());
+        var cover = Assert.Single(detail.GetProperty("attachments").EnumerateArray());
+        Assert.Equal(coverId, cover.GetProperty("id").GetGuid());
+        Assert.Equal("photo", cover.GetProperty("kind").GetString());
+        Assert.Equal("para-choque.jpg", cover.GetProperty("fileName").GetString());
+        Assert.Equal(JsonValueKind.Null, (await client.GetVehicleAsync(golId)).GetProperty("coverPhotoId").ValueKind);
+    }
+
     private static async Task<JsonElement> SeedAsync(HttpClient client)
     {
         using var response = await client.PostAsync(SeedUrl, content: null);
