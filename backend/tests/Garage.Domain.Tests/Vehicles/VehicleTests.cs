@@ -1,3 +1,4 @@
+using Garage.Domain.Attachments;
 using Garage.Domain.Common;
 using Garage.Domain.Vehicles;
 
@@ -210,6 +211,56 @@ public class VehicleTests
 
         Assert.Equal("Honda Civic 2021", v.DisplayName);
     }
+
+    private static Attachment PhotoOf(Guid vehicleId, DetectedFileType type = DetectedFileType.Jpeg) =>
+        Attachment.Create(vehicleId, Guid.NewGuid(), AttachmentKind.Photo, type, "capa.jpg", "image/jpeg", 10, Now);
+
+    [Fact]
+    public void SetCoverPhoto_accepts_a_photo_of_the_same_vehicle()
+    {
+        var v = NewVehicle();
+        var photo = PhotoOf(v.Id);
+
+        var result = v.SetCoverPhoto(photo);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(photo.Id, v.CoverPhotoId);
+    }
+
+    [Fact]
+    public void SetCoverPhoto_rejects_a_photo_of_another_vehicle()
+    {
+        var v = NewVehicle();
+
+        var result = v.SetCoverPhoto(PhotoOf(Guid.NewGuid()));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(VehicleErrors.CoverMustBeVehiclePhoto, result.Error);
+        Assert.Null(v.CoverPhotoId);
+    }
+
+    [Fact]
+    public void SetCoverPhoto_rejects_a_document()
+    {
+        var v = NewVehicle();
+
+        var result = v.SetCoverPhoto(PhotoOf(v.Id, DetectedFileType.Pdf));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(VehicleErrors.CoverMustBeVehiclePhoto, result.Error);
+        Assert.Null(v.CoverPhotoId);
+    }
+
+    [Fact]
+    public void ClearCoverPhoto_removes_the_cover()
+    {
+        var v = NewVehicle();
+        v.SetCoverPhoto(PhotoOf(v.Id));
+
+        v.ClearCoverPhoto();
+
+        Assert.Null(v.CoverPhotoId);
+    }
 }
 
 public class VehicleErrorsTests
@@ -249,5 +300,12 @@ public class VehicleErrorsTests
         Assert.Equal("vehicle.catalog_not_linked", VehicleErrors.CatalogNotLinked.Code);
         Assert.Equal(ErrorType.NotFound, VehicleErrors.CatalogNotLinked.Type);
         Assert.Equal("Este veículo não está vinculado à FIPE.", VehicleErrors.CatalogNotLinked.Message);
+    }
+    [Fact]
+    public void CoverMustBeVehiclePhoto_is_a_domain_rule_error_in_pt_BR()
+    {
+        Assert.Equal("vehicle.cover_must_be_vehicle_photo", VehicleErrors.CoverMustBeVehiclePhoto.Code);
+        Assert.Equal(ErrorType.DomainRule, VehicleErrors.CoverMustBeVehiclePhoto.Type);
+        Assert.Equal("A capa precisa ser uma foto deste veículo.", VehicleErrors.CoverMustBeVehiclePhoto.Message);
     }
 }
