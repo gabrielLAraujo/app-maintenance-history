@@ -4,6 +4,7 @@ using System.Text.Json;
 using Garage.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Garage.Api.IntegrationTests.Demo;
 
@@ -13,15 +14,20 @@ public sealed class DemoSessionTests(GarageApiFactory factory)
     private const string DemoUrl = "/api/auth/demo";
     private const string AuthCookie = "garage_auth";
 
+    // O HttpClient descarta cookie vencido pelo relógio real, e o relógio da fábrica está no passado (2026-10-10): a sessão
+    // da demo, que vence em 24 h, já chegaria vencida. Cada teste usa um host com relógio próprio no "agora" real.
+    private readonly FakeTimeProvider _clock = new(DateTimeOffset.UtcNow);
+
     [Fact]
     public async Task Demo_session_logs_in_with_the_example_data()
     {
-        using var client = await factory.CreateAnonymousClientAsync();
+        using var host = factory.WithClock(_clock);
+        using var client = await host.CreateAnonymousClientAsync();
 
         using var response = await client.PostAsync(DemoUrl, content: null);
 
         var body = await AssertCreatedAsync(response);
-        Assert.Equal(factory.Clock.GetUtcNow().AddHours(24), body.GetProperty("expiresAt").GetDateTimeOffset());
+        Assert.Equal(_clock.GetUtcNow().AddHours(24), body.GetProperty("expiresAt").GetDateTimeOffset());
         var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", TestJson.Options);
         Assert.True(me.GetProperty("isDemo").GetBoolean());
         Assert.Equal(body.GetProperty("expiresAt").GetDateTimeOffset(), me.GetProperty("demoExpiresAt").GetDateTimeOffset());
@@ -31,8 +37,9 @@ public sealed class DemoSessionTests(GarageApiFactory factory)
     [Fact]
     public async Task Two_demo_sessions_do_not_see_each_other()
     {
-        using var first = await StartDemoAsync(factory);
-        using var second = await StartDemoAsync(factory);
+        using var host = factory.WithClock(_clock);
+        using var first = await StartDemoAsync(host);
+        using var second = await StartDemoAsync(host);
 
         await first.CreateVehicleAsync();
 
@@ -43,9 +50,10 @@ public sealed class DemoSessionTests(GarageApiFactory factory)
     [Fact]
     public async Task Demo_account_cannot_log_in_with_a_password()
     {
-        using var demo = await StartDemoAsync(factory);
+        using var host = factory.WithClock(_clock);
+        using var demo = await StartDemoAsync(host);
         var email = (await demo.GetFromJsonAsync<JsonElement>("/api/auth/me", TestJson.Options)).GetProperty("email").GetString();
-        using var visitor = await factory.CreateAnonymousClientAsync();
+        using var visitor = await host.CreateAnonymousClientAsync();
 
         using var login = await visitor.PostAsJsonAsync(
             "/api/auth/login", new { email, password = TestClients.Password }, TestJson.Options);
@@ -94,7 +102,8 @@ public sealed class DemoSessionTests(GarageApiFactory factory)
     [Fact]
     public async Task Logout_expires_the_demo_and_the_old_cookie_stops_working()
     {
-        using var client = await factory.CreateAnonymousClientAsync();
+        using var host = factory.WithClock(_clock);
+        using var client = await host.CreateAnonymousClientAsync();
         using var started = await client.PostAsync(DemoUrl, content: null);
         await AssertCreatedAsync(started);
         var oldCookies = AuthCookies(started);
@@ -104,7 +113,7 @@ public sealed class DemoSessionTests(GarageApiFactory factory)
             Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
 
         // Quem guardou o cookie de antes do logout não continua na demo.
-        using var replay = factory.CreateCookieClient();
+        using var replay = host.CreateCookieClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
         request.Headers.Add("Cookie", oldCookies);
         using var me = await replay.SendAsync(request);
