@@ -267,6 +267,10 @@ namespace Garage.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("CoverPhotoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cover_photo_id");
+
                     b.Property<int>("CurrentOdometer")
                         .HasColumnType("integer")
                         .HasColumnName("current_odometer");
@@ -354,6 +358,9 @@ namespace Garage.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_vehicles");
+
+                    b.HasIndex("CoverPhotoId")
+                        .HasDatabaseName("ix_vehicles_cover_photo_id");
 
                     b.HasIndex("OwnerId")
                         .HasDatabaseName("ix_vehicles_owner_id");
@@ -733,6 +740,12 @@ namespace Garage.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Garage.Domain.Vehicles.Vehicle", b =>
                 {
+                    b.HasOne("Garage.Domain.Attachments.Attachment", null)
+                        .WithMany()
+                        .HasForeignKey("CoverPhotoId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_vehicles_attachments_cover_photo_id");
+
                     b.HasOne("Garage.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("OwnerId")
