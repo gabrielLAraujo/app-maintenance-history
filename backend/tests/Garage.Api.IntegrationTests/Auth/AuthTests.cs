@@ -18,7 +18,8 @@ public sealed class AuthTests(GarageApiFactory factory)
 
     private static readonly string[] AnonymousRoutes =
     [
-        "/api/health", "/api/health/ready", "/api/auth/config", "/api/auth/antiforgery", "/api/auth/register", "/api/auth/login"
+        "/api/health", "/api/health/ready", "/api/auth/config", "/api/auth/antiforgery", "/api/auth/register", "/api/auth/login",
+        "/api/auth/demo"
     ];
 
     [Fact]
@@ -31,6 +32,7 @@ public sealed class AuthTests(GarageApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestJson.Options);
         Assert.True(body.GetProperty("registrationEnabled").GetBoolean());
+        Assert.True(body.GetProperty("demoEnabled").GetBoolean());
     }
 
     [Fact]
@@ -45,6 +47,8 @@ public sealed class AuthTests(GarageApiFactory factory)
         var me = await response.Content.ReadFromJsonAsync<JsonElement>(TestJson.Options);
         Assert.NotEqual(Guid.Empty, me.GetProperty("id").GetGuid());
         Assert.Equal(email, me.GetProperty("email").GetString());
+        Assert.False(me.GetProperty("isDemo").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, me.GetProperty("demoExpiresAt").ValueKind);
     }
 
     [Fact]

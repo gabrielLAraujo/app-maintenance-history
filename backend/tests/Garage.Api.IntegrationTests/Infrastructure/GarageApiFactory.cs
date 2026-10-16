@@ -15,7 +15,7 @@ namespace Garage.Api.IntegrationTests.Infrastructure;
 public sealed class GarageApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private static readonly string[] RateLimitKeys =
-        ["LoginPerMinute", "PublicPerMinute", "PublicPhotosPerMinute", "CatalogPerMinute", "UploadsPerMinute"];
+        ["LoginPerMinute", "PublicPerMinute", "PublicPhotosPerMinute", "CatalogPerMinute", "UploadsPerMinute", "DemoPerHour"];
 
     private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:18").Build();
 
@@ -65,6 +65,10 @@ public sealed class GarageApiFactory : WebApplicationFactory<Program>, IAsyncLif
         builder.UseSetting("ConnectionStrings:Garage", _database.GetConnectionString());
         builder.UseSetting("Auth:AllowRegistration", "true");
         builder.UseSetting("Demo:Enabled", "true");
+        // Demo por visitante ligada, com teto alto (o banco é compartilhado) e sem a limpeza automática em segundo plano.
+        builder.UseSetting("Demo:Visitors:Enabled", "true");
+        builder.UseSetting("Demo:Visitors:MaxActive", "10000");
+        builder.UseSetting("Demo:Visitors:CleanupIntervalMinutes", "0");
         builder.UseSetting("Storage:RootPath", StoragePath);
         // Sem caminho na URL base: o FakeFipeHandler indexa as respostas pelo caminho relativo (cars/brands...).
         builder.UseSetting("Fipe:BaseUrl", "http://fipe.test/");
