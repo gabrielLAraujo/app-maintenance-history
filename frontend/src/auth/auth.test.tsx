@@ -12,7 +12,14 @@ type Route = () => Response | Promise<Response>
 
 /** API falsa com uma sessão: login/cadastro abrem, logout fecha, e as rotas protegidas dão 401 sem ela. */
 function fakeApi(
-  options: { signedIn?: boolean; registrationEnabled?: boolean; login?: Route; register?: Route; extra?: Record<string, Route> } = {},
+  options: {
+    signedIn?: boolean
+    registrationEnabled?: boolean
+    demoEnabled?: boolean
+    login?: Route
+    register?: Route
+    extra?: Record<string, Route>
+  } = {},
 ) {
   const session = { signedIn: options.signedIn ?? false }
   const open: Route = () => {
@@ -25,7 +32,8 @@ function fakeApi(
       document.cookie = 'XSRF-TOKEN=test-token; path=/'
       return noContent()
     },
-    'GET /api/auth/config': () => json({ registrationEnabled: options.registrationEnabled ?? false }),
+    'GET /api/auth/config': () =>
+      json({ registrationEnabled: options.registrationEnabled ?? false, demoEnabled: options.demoEnabled ?? false }),
     'GET /api/auth/me': () => (session.signedIn ? json(account) : problem(401, { title: 'Unauthorized' })),
     'POST /api/auth/login': options.login ?? open,
     'POST /api/auth/register': options.register ?? (() => {
@@ -56,12 +64,38 @@ beforeEach(() => {
 })
 
 describe('rotas e sessão', () => {
-  it('visitante sem sessão é levado ao login (com spinner, não tela em branco, enquanto confere)', async () => {
+  it('visitante sem sessão em / vê a landing (com spinner, não tela em branco, enquanto confere)', async () => {
     fakeApi()
     renderApp('/')
 
     expect(screen.getByText('Carregando')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Tudo o que já foi feito no seu carro, num só lugar.' }),
+    ).toBeInTheDocument()
+  })
+
+  it('visitante sem sessão numa tela logada é levado ao login', async () => {
+    fakeApi()
+    const { router } = renderApp('/vehicles/x')
+
     expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/login')
+  })
+
+  it('o login oferece "Ver demo" quando a demo está ligada', async () => {
+    fakeApi({ demoEnabled: true })
+    renderApp('/login')
+
+    expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Ver demo/ })).toBeInTheDocument()
+  })
+
+  it('sem a demo, o login não oferece "Ver demo"', async () => {
+    fakeApi({ demoEnabled: false })
+    renderApp('/login')
+
+    expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Ver demo/ })).not.toBeInTheDocument()
   })
 
   it('quem já tem sessão abre direto o painel, com e-mail e Sair no cabeçalho', async () => {
@@ -127,7 +161,7 @@ describe('rotas e sessão', () => {
 describe('login', () => {
   it('entra, busca o usuário e mostra o painel', async () => {
     const { calls } = fakeApi()
-    renderApp('/')
+    renderApp('/login')
 
     const typist = await fillCredentials()
     await typist.click(screen.getByRole('button', { name: 'Entrar' }))
@@ -149,7 +183,7 @@ describe('login', () => {
         return noContent()
       },
     })
-    renderApp('/')
+    renderApp('/login')
 
     const typist = await fillCredentials()
     await typist.click(screen.getByRole('button', { name: 'Entrar' }))
@@ -166,7 +200,7 @@ describe('login', () => {
     const { calls } = fakeApi({
       login: () => problem(401, { code: 'auth.invalid_credentials', detail: 'E-mail ou senha inválidos.' }),
     })
-    renderApp('/')
+    renderApp('/login')
 
     const typist = await fillCredentials()
     await typist.click(screen.getByRole('button', { name: 'Entrar' }))
@@ -180,7 +214,7 @@ describe('login', () => {
 
   it('valida e-mail e senha (mínimo de 10) antes de chamar a API', async () => {
     const { calls } = fakeApi()
-    renderApp('/')
+    renderApp('/login')
 
     const typist = await fillCredentials('ana', 'curta')
     await typist.click(screen.getByRole('button', { name: 'Entrar' }))
@@ -196,7 +230,7 @@ describe('login', () => {
         throw new TypeError('Failed to fetch')
       },
     })
-    renderApp('/')
+    renderApp('/login')
 
     const typist = await fillCredentials()
     await typist.click(screen.getByRole('button', { name: 'Entrar' }))
@@ -253,7 +287,7 @@ describe('sair e sessão expirada', () => {
     expect(calls[logout + 1].path).toBe('/api/auth/antiforgery')
   })
 
-  it('401 no meio do uso leva ao login, sem tela em branco e sem laço', async () => {
+  it('401 no meio do uso encerra a sessão (no início, volta a landing), sem tela em branco e sem laço', async () => {
     const { calls, session } = fakeApi({ signedIn: true })
     renderApp('/')
     expect(await screen.findByRole('heading', { name: 'Seus veículos' })).toBeInTheDocument()
@@ -263,7 +297,9 @@ describe('sair e sessão expirada', () => {
       await api.GET('/api/vehicles')
     })
 
-    expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Tudo o que já foi feito no seu carro, num só lugar.' }),
+    ).toBeInTheDocument()
     expect(calls.filter((call) => call.path === '/api/auth/me')).toHaveLength(1)
     // Uma do painel ao abrir e uma deste teste: o 401 não faz o painel (já desmontado) buscar de novo.
     expect(calls.filter((call) => call.path === '/api/vehicles')).toHaveLength(2)
@@ -278,6 +314,7 @@ describe('sair e sessão expirada', () => {
     await act(async () => {
       await api.GET('/api/vehicles')
     })
+    await userEvent.click((await screen.findAllByRole('link', { name: 'Entrar' }))[0])
     const typist = await fillCredentials()
     await typist.click(screen.getByRole('button', { name: 'Entrar' }))
 
