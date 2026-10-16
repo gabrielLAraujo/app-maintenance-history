@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Garage.Api.IntegrationTests.Infrastructure;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Garage.Api.IntegrationTests.Garage;
 
@@ -9,14 +10,15 @@ public sealed class GarageSummaryTests(GarageApiFactory factory)
 {
     private const string SummaryUrl = "/api/garage/summary";
 
-    // 15:00 UTC é 12:00 em São Paulo: "hoje" é 2026-10-12. Os dados de exemplo são relativos a hoje.
+    // 15:00 UTC é 12:00 em São Paulo: "hoje" é 2026-10-12. Os dados de exemplo são relativos a hoje. Relógio próprio
+    // (WithClock): o da fábrica é compartilhado com os outros testes e não volta no tempo.
     private static readonly DateTimeOffset SeedNow = new(2026, 10, 12, 15, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task Summary_of_the_year_across_vehicles()
     {
-        factory.Clock.SetUtcNow(SeedNow);
-        using var client = await factory.CreateUserClientAsync();
+        using var host = factory.WithClock(new FakeTimeProvider(SeedNow));
+        using var client = await host.CreateUserClientAsync();
         await SeedDemoAsync(client);
 
         var summary = await GetSummaryAsync(client);
@@ -55,8 +57,8 @@ public sealed class GarageSummaryTests(GarageApiFactory factory)
     public async Task Year_follows_the_Sao_Paulo_time_zone()
     {
         // 02:00 UTC de 01/01/2027 ainda é 31/12/2026, 23:00, em São Paulo.
-        factory.Clock.SetUtcNow(new DateTimeOffset(2027, 1, 1, 2, 0, 0, TimeSpan.Zero));
-        using var client = await factory.CreateUserClientAsync();
+        using var host = factory.WithClock(new FakeTimeProvider(new DateTimeOffset(2027, 1, 1, 2, 0, 0, TimeSpan.Zero)));
+        using var client = await host.CreateUserClientAsync();
 
         var summary = await GetSummaryAsync(client);
 
@@ -69,10 +71,10 @@ public sealed class GarageSummaryTests(GarageApiFactory factory)
     [Fact]
     public async Task Only_the_callers_vehicles_count()
     {
-        factory.Clock.SetUtcNow(SeedNow);
-        using var owner = await factory.CreateUserClientAsync();
+        using var host = factory.WithClock(new FakeTimeProvider(SeedNow));
+        using var owner = await host.CreateUserClientAsync();
         await SeedDemoAsync(owner);
-        using var other = await factory.CreateUserClientAsync();
+        using var other = await host.CreateUserClientAsync();
 
         var summary = await GetSummaryAsync(other);
 
