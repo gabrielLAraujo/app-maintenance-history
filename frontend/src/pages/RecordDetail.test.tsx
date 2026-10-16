@@ -467,3 +467,59 @@ describe('envio de anexos', () => {
     expect(screen.getByRole('button', { name: 'Tirar foto' })).toBeEnabled()
   })
 })
+
+describe('capa do veículo a partir das fotos', () => {
+  const coverPath = `/api/vehicles/${id}/cover-photo`
+
+  it('"Usar como capa" numa foto manda o id dela; documento não tem a ação', async () => {
+    const calls = fakeApi({ [`PUT ${coverPath}`]: () => noContent() })
+    renderApp(`/vehicles/${id}/records/${recordId}`)
+    const typist = userEvent.setup()
+
+    const use = await screen.findByRole('button', { name: 'Usar como capa' })
+    expect(screen.getAllByRole('button', { name: 'Usar como capa' })).toHaveLength(1)
+    await typist.click(use)
+
+    await waitFor(() => expect(sent(calls, 'PUT', coverPath)).toHaveLength(1))
+    const [put] = sent(calls, 'PUT', coverPath)
+    expect(bodyOf(put)).toEqual({ attachmentId: photo.id })
+    expect(put.headers.get('X-XSRF-TOKEN')).toBe('test-token')
+  })
+
+  it('a foto que é a capa diz isso e oferece "Remover capa"', async () => {
+    const calls = fakeApi({
+      [`GET /api/vehicles/${id}`]: () => json({ ...civicDto, coverPhotoId: photo.id }),
+      [`PUT ${coverPath}`]: () => noContent(),
+    })
+    renderApp(`/vehicles/${id}/records/${recordId}`)
+    const typist = userEvent.setup()
+
+    expect(await screen.findByText('Capa do veículo')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Usar como capa' })).not.toBeInTheDocument()
+    await typist.click(screen.getByRole('button', { name: 'Remover capa' }))
+
+    await waitFor(() => expect(sent(calls, 'PUT', coverPath)).toHaveLength(1))
+    expect(bodyOf(sent(calls, 'PUT', coverPath)[0])).toEqual({ attachmentId: null })
+  })
+})
+
+describe('conta demo', () => {
+  it('não oferece envio de arquivos e explica por quê', async () => {
+    fakeApi({
+      'GET /api/auth/me': () =>
+        json({
+          id: '0198a1c2-0000-7000-8000-0000000000d1',
+          email: 'demo-x@demo.garagem.invalid',
+          isDemo: true,
+          demoExpiresAt: new Date(Date.now() + 23 * 3_600_000).toISOString(),
+        }),
+    })
+    renderApp(`/vehicles/${id}/records/${recordId}`)
+
+    expect(await screen.findByText('Na demonstração não dá para enviar arquivos.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tirar foto' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Escolher arquivo' })).not.toBeInTheDocument()
+    // As fotos de exemplo continuam lá, com as ações que não enviam nada.
+    expect(screen.getByRole('button', { name: 'Usar como capa' })).toBeInTheDocument()
+  })
+})
