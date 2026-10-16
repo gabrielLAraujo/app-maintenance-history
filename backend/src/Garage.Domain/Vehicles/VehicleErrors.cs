@@ -22,6 +22,11 @@ public static class VehicleErrors
         "Este veículo não está vinculado à FIPE.",
         ErrorType.NotFound);
 
+    public static readonly Error CoverMustBeVehiclePhoto = new(
+        "vehicle.cover_must_be_vehicle_photo",
+        "A capa precisa ser uma foto deste veículo.",
+        ErrorType.DomainRule);
+
     public static Error OdometerBelowRecords(int maxRecordKm) => new(
         "vehicle.odometer_below_records",
         $"A km corrigida não pode ficar abaixo de {maxRecordKm.ToString("N0", PtBr)} km, a maior km do histórico.",
