@@ -1,5 +1,6 @@
 using Garage.Application.Abstractions.Messaging;
 using Garage.Application.Abstractions.Ports;
+using Garage.Application.Demo;
 using Garage.Domain.Attachments;
 using Garage.Domain.Common;
 using Garage.Domain.Records;
@@ -25,6 +26,10 @@ internal sealed class UploadAttachmentHandler(
     {
         if (!await access.CanEditAsync(command.VehicleId, currentUser.UserId, ct))
             return VehicleErrors.NotFound;
+
+        // Spec 3.2: a demo não recebe arquivos (não vira hospedagem).
+        if (currentUser.IsDemo)
+            return DemoErrors.UploadsDisabled;
 
         var recordExists = await db.Query<ServiceRecord>()
             .AnyAsync(r => r.VehicleId == command.VehicleId && r.Id == command.RecordId, ct);

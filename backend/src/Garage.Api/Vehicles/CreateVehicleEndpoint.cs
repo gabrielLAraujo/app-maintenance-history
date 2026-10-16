@@ -12,7 +12,8 @@ internal sealed class CreateVehicleEndpoint : IEndpoint
             .WithTags("Vehicles")
             .Produces<CreatedIdResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
     private static async Task<IResult> HandleAsync(CreateVehicleRequest request, ISender sender, CancellationToken ct)
     {

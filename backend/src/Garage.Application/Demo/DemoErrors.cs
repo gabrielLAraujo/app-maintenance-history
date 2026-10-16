@@ -13,4 +13,16 @@ public static class DemoErrors
         "demo.unavailable",
         "A demonstração está cheia agora. Tente de novo mais tarde.",
         ErrorType.Unavailable);
+
+    /// <summary>A demo não serve de hospedagem de arquivos: as fotos de exemplo já estão lá.</summary>
+    public static readonly Error UploadsDisabled = new(
+        "demo.uploads_disabled",
+        "Na demonstração não dá para enviar arquivos.",
+        ErrorType.Forbidden);
+
+    public static Error VehicleLimitReached(int max) => new(
+        "demo.vehicle_limit_reached",
+        $"A demonstração permite até {max} veículos.",
+        ErrorType.DomainRule,
+        new Dictionary<string, object?> { ["max"] = max });
 }
