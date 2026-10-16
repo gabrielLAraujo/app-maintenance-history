@@ -29,14 +29,17 @@ internal sealed class DemoDataSeeder(
     private const string PdfContentType = "application/pdf";
 
     /// <summary>
-    /// Cria os veículos de exemplo (<see cref="DemoDataCatalog"/>) para <paramref name="ownerId"/>, sem gravar nada: quem chama
-    /// é um comando, e o <c>TransactionCommandDecorator</c> faz um único SaveChanges.
+    /// Cria os veículos de exemplo (<see cref="DemoDataCatalog"/>) para <paramref name="ownerId"/>. Quem chama é um comando:
+    /// os dados vão num único SaveChanges, feito aqui, e as capas ficam para o SaveChanges do
+    /// <c>TransactionCommandDecorator</c>, porque o EF não grava num só SaveChanges o ciclo veículo → capa → anexo → veículo
+    /// (as duas linhas novas dependeriam uma da outra).
     /// </summary>
     public async Task<Result<DemoSeedResult>> SeedAsync(Guid ownerId, CancellationToken ct)
     {
         var today = clock.Today;
         var now = clock.Now;
         var demoVehicles = DemoDataCatalog.Build(today);
+        var covers = new List<(Vehicle Vehicle, Attachment Photo)>();
 
         // Uma falha em qualquer item (que o catálogo não deve ter) descarta tudo, sem deixar metade dos dados de exemplo. Os
         // arquivos dos anexos vão para o disco já durante o laço, mas cada um com a limpeza registrada antes (OnRollback),
@@ -61,11 +64,7 @@ internal sealed class DemoDataSeeder(
                         return attached.Error!;
 
                     if (file.IsCover)
-                    {
-                        var cover = vehicle.SetCoverPhoto(attached.Value);
-                        if (cover.IsFailure)
-                            return cover.Error!;
-                    }
+                        covers.Add((vehicle, attached.Value));
                 }
             }
 
@@ -83,6 +82,20 @@ internal sealed class DemoDataSeeder(
             {
                 shareLinks.Add(ShareLink.Create(
                     vehicle.Id, ShareTokens.New(), link.Label, link.IncludeCosts, link.IncludePlate, expiresAt: null, now));
+            }
+        }
+
+        if (covers.Count > 0)
+        {
+            var saved = await unitOfWork.SaveChangesAsync(ct);
+            if (saved.IsFailure)
+                return saved.Error!;
+
+            foreach (var (vehicle, photo) in covers)
+            {
+                var cover = vehicle.SetCoverPhoto(photo);
+                if (cover.IsFailure)
+                    return cover.Error!;
             }
         }
 
