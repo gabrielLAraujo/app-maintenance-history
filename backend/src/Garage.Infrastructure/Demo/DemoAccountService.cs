@@ -31,13 +31,15 @@ public sealed class DemoAccountService(
     {
         var id = Guid.CreateVersion7();
         var email = $"demo-{id:N}@{EmailDomain}";
+        // Em segundos inteiros, como a validade do cookie: a resposta, o banco e a sessão dizem o mesmo instante.
+        var expiresAt = clock.Now.AddHours(options.Value.TtlHours);
         var user = new AppUser
         {
             Id = id,
             UserName = email,
             Email = email,
             IsDemo = true,
-            DemoExpiresAt = clock.Now.AddHours(options.Value.TtlHours)
+            DemoExpiresAt = expiresAt.AddTicks(-(expiresAt.Ticks % TimeSpan.TicksPerSecond))
         };
 
         var created = await users.CreateAsync(user);

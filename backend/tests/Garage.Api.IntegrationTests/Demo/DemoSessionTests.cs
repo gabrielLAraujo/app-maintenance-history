@@ -16,7 +16,7 @@ public sealed class DemoSessionTests(GarageApiFactory factory)
 
     // O HttpClient descarta cookie vencido pelo relógio real, e o relógio da fábrica está no passado (2026-10-10): a sessão
     // da demo, que vence em 24 h, já chegaria vencida. Cada teste usa um host com relógio próprio no "agora" real.
-    private readonly FakeTimeProvider _clock = new(DateTimeOffset.UtcNow);
+    private readonly FakeTimeProvider _clock = new(DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
 
     [Fact]
     public async Task Demo_session_logs_in_with_the_example_data()
