@@ -1,6 +1,8 @@
+using Garage.Infrastructure.Demo;
 using Garage.Infrastructure.Identity;
 using Garage.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 
 namespace Garage.Api.Auth;
 
@@ -75,4 +77,11 @@ public static class AuthSetup
     /// </summary>
     public static bool IsRegistrationEnabled(this IEndpointRouteBuilder routes) =>
         routes.ServiceProvider.GetRequiredService<IConfiguration>().GetValue<bool>(RegistrationSetting);
+
+    /// <summary>
+    /// <c>Demo:Visitors:Enabled</c>, lido ao mapear as rotas: com a demo do visitante desligada, <c>POST /auth/demo</c> nem
+    /// existe (404).
+    /// </summary>
+    public static bool IsVisitorDemoEnabled(this IEndpointRouteBuilder routes) =>
+        routes.ServiceProvider.GetRequiredService<IOptions<DemoVisitorOptions>>().Value.Enabled;
 }

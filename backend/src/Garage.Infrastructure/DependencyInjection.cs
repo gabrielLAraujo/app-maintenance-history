@@ -47,10 +47,10 @@ public static class DependencyInjection
 
         services.AddOptions<DemoVisitorOptions>()
             .Bind(config.GetSection(DemoVisitorOptions.SectionName))
-            .Validate(options => options.TtlHours > 0 && options.MaxActive > 0 && options.MaxVehicles > 0
-                                 && options.CleanupIntervalMinutes >= 0,
-                "Demo:Visitors inválido: TtlHours, MaxActive e MaxVehicles precisam ser positivos e "
-                + "CleanupIntervalMinutes, zero (desliga) ou positivo.")
+            .Validate(options => options.TtlHours > 0 && options.MaxVehicles > 0
+                                 && options.MaxActive >= 0 && options.CleanupIntervalMinutes >= 0,
+                "Demo:Visitors inválido: TtlHours e MaxVehicles precisam ser positivos; MaxActive (0 fecha a demo) e "
+                + "CleanupIntervalMinutes (0 desliga a limpeza automática), zero ou positivos.")
             .ValidateOnStart();
         services.AddScoped<DemoAccountService>();
         services.AddSingleton<IDemoLimits, DemoLimits>();

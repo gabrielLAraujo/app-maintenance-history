@@ -1,6 +1,9 @@
 namespace Garage.Api.Http;
 
-/// <summary>Limites por minuto (seção <c>RateLimits</c>). Os testes de integração os sobem para não interferirem entre si.</summary>
+/// <summary>
+/// Limites por minuto, exceto o da demo, por hora (seção <c>RateLimits</c>). Os testes de integração os sobem para não
+/// interferirem entre si.
+/// </summary>
 public sealed class RateLimitOptions
 {
     public const string SectionName = "RateLimits";
@@ -22,4 +25,7 @@ public sealed class RateLimitOptions
 
     /// <summary>Upload de anexos, por usuário.</summary>
     public int UploadsPerMinute { get; set; } = 30;
+
+    /// <summary><c>POST /auth/demo</c>, por IP e por hora: cada demo cria uma conta e copia as fotos de exemplo.</summary>
+    public int DemoPerHour { get; set; } = 5;
 }

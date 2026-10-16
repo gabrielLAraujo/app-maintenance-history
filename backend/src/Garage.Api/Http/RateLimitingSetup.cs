@@ -13,11 +13,13 @@ public static class RateLimitPolicies
     public const string PublicPhotos = "public-photos";
     public const string Catalog = "catalog";
     public const string Uploads = "uploads";
+    public const string Demo = "demo";
 }
 
 public static class RateLimitingSetup
 {
-    private static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan Minute = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan Hour = TimeSpan.FromHours(1);
 
     public static IServiceCollection AddRateLimiting(this IServiceCollection services)
     {
@@ -34,29 +36,32 @@ public static class RateLimitingSetup
             options.AddPolicy(RateLimitPolicies.PublicPhotos, http => ByIp(http, limits => limits.PublicPhotosPerMinute));
             options.AddPolicy(RateLimitPolicies.Catalog, http => ByUser(http, limits => limits.CatalogPerMinute));
             options.AddPolicy(RateLimitPolicies.Uploads, http => ByUser(http, limits => limits.UploadsPerMinute));
+            options.AddPolicy(RateLimitPolicies.Demo, http => ByIp(http, limits => limits.DemoPerHour, Hour));
         });
 
         return services;
     }
 
-    private static RateLimitPartition<string> ByIp(HttpContext http, Func<RateLimitOptions, int> limit) =>
-        Partition(http, ClientKey(http), limit);
+    private static RateLimitPartition<string> ByIp(
+        HttpContext http, Func<RateLimitOptions, int> limit, TimeSpan? window = null) =>
+        Partition(http, ClientKey(http), limit, window ?? Minute);
 
     // Rotas por usuário exigem login; sem usuário (não deveria ocorrer) cai para o IP.
     private static RateLimitPartition<string> ByUser(HttpContext http, Func<RateLimitOptions, int> limit) =>
         http.User.FindFirstValue(ClaimTypes.NameIdentifier) is { } userId
-            ? Partition(http, $"user:{userId}", limit)
-            : Partition(http, ClientKey(http), limit);
+            ? Partition(http, $"user:{userId}", limit, Minute)
+            : Partition(http, ClientKey(http), limit, Minute);
 
     private static string ClientKey(HttpContext http) => $"ip:{http.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
 
-    private static RateLimitPartition<string> Partition(HttpContext http, string key, Func<RateLimitOptions, int> limit)
+    private static RateLimitPartition<string> Partition(
+        HttpContext http, string key, Func<RateLimitOptions, int> limit, TimeSpan window)
     {
         var permitLimit = limit(http.RequestServices.GetRequiredService<IOptions<RateLimitOptions>>().Value);
         return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = permitLimit,
-            Window = Window,
+            Window = window,
             QueueLimit = 0
         });
     }
