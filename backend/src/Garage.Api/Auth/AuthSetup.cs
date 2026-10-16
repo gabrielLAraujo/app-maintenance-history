@@ -28,6 +28,7 @@ public static class AuthSetup
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             })
             .AddEntityFrameworkStores<GarageDbContext>()
+            .AddClaimsPrincipalFactory<AppUserClaimsPrincipalFactory>()
             .AddSignInManager()
             .AddDefaultTokenProviders();
 

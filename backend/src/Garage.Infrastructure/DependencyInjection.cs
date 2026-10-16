@@ -45,6 +45,16 @@ public static class DependencyInjection
         services.AddSingleton<IImageProcessor, MagickImageProcessor>();
         services.AddSingleton<IDemoAssets, EmbeddedDemoAssets>();
 
+        services.AddOptions<DemoVisitorOptions>()
+            .Bind(config.GetSection(DemoVisitorOptions.SectionName))
+            .Validate(options => options.TtlHours > 0 && options.MaxActive > 0 && options.MaxVehicles > 0
+                                 && options.CleanupIntervalMinutes >= 0,
+                "Demo:Visitors inválido: TtlHours, MaxActive e MaxVehicles precisam ser positivos e "
+                + "CleanupIntervalMinutes, zero (desliga) ou positivo.")
+            .ValidateOnStart();
+        services.AddScoped<DemoAccountService>();
+        services.AddSingleton<IDemoLimits, DemoLimits>();
+
         services.AddGarageDataProtection(config);
 
         services.AddHttpContextAccessor();
