@@ -12,6 +12,7 @@ internal sealed class RevokeShareLinkEndpoint : IEndpoint
             .WithName("RevokeShareLink")
             .WithTags("ShareLinks")
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             // Link (ou veículo) excluído entre a leitura e a gravação: o UPDATE não afeta linha nenhuma (concurrency.conflict).

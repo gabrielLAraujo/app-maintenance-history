@@ -2,7 +2,7 @@ import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClie
 import { api } from '../client'
 import type { components } from '../schema'
 import { isConflict, problemOf, unwrap, unwrapEmpty } from '../unwrap'
-import { invalidateVehicle, vehicleKeys } from './vehicles'
+import { invalidateVehicle, invalidateVehicleLists, vehicleKeys } from './vehicles'
 
 type Schemas = components['schemas']
 
@@ -91,11 +91,15 @@ export function useDeleteRecord(vehicleId: string) {
           ? { ...vehicle, coverPhotoId: null }
           : vehicle,
       )
-      // O registro deixou de existir: sai do cache em vez de ser buscado de novo e dar 404. O resto do veículo (histórico,
-      // gastos, capa), as listas e o painel buscam de novo.
-      queryClient.removeQueries({ queryKey: recordKeys.one(vehicleId, recordId) })
-      // Sem esperar: a tela volta ao veículo na hora, mostrando o cache já sem a capa enquanto a busca nova acontece.
-      void invalidateVehicle(queryClient, vehicleId)
+      // O resto do veículo (histórico, gastos, capa), as listas e o painel buscam de novo; o registro apagado fica de
+      // fora (buscá-lo daria 404) e sai do cache sozinho quando ninguém mais o observa. Sem esperar: a tela volta ao
+      // veículo na hora, mostrando o cache já sem a capa enquanto a busca nova acontece.
+      const deleted = recordKeys.one(vehicleId, recordId)
+      void queryClient.invalidateQueries({
+        queryKey: vehicleKeys.one(vehicleId),
+        predicate: (query) => !(query.queryKey[2] === deleted[2] && query.queryKey[3] === deleted[3]),
+      })
+      void invalidateVehicleLists(queryClient)
     },
   })
 }

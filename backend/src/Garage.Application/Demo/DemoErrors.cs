@@ -14,6 +14,12 @@ public static class DemoErrors
         "A demonstração está cheia agora. Tente de novo mais tarde.",
         ErrorType.Unavailable);
 
+    /// <summary>A espera pela trava do teto de veículos passou do limite: outro pedido da mesma conta está em curso.</summary>
+    public static readonly Error Busy = new(
+        "demo.busy",
+        "A demonstração está ocupada com outro pedido. Tente de novo em instantes.",
+        ErrorType.Unavailable);
+
     /// <summary>A demo não serve de hospedagem de arquivos: as fotos de exemplo já estão lá.</summary>
     public static readonly Error UploadsDisabled = new(
         "demo.uploads_disabled",

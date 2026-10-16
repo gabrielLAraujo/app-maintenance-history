@@ -12,6 +12,7 @@ internal sealed class DeleteReminderEndpoint : IEndpoint
             .WithName("DeleteReminder")
             .WithTags("Reminders")
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);

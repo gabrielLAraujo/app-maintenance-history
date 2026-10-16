@@ -16,4 +16,11 @@ public static class ApiErrors
 
     public static readonly Error RateLimitExceeded = new(
         "rate_limit.exceeded", "Muitas tentativas. Aguarde um minuto.", ErrorType.TooManyRequests);
+
+    /// <summary>A cota de escritas de uma conta demo é por hora: a mensagem diz isso (o Retry-After diz quanto falta).</summary>
+    public static Error DemoWriteQuotaExceeded(int perHour) => new(
+        "demo.write_quota_exceeded",
+        $"A demonstração permite até {perHour} alterações por hora. Tente de novo mais tarde.",
+        ErrorType.TooManyRequests,
+        new Dictionary<string, object?> { ["max"] = perHour });
 }

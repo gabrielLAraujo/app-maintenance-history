@@ -1,3 +1,4 @@
+using System.Data;
 using Garage.Application.Abstractions.Ports;
 using Garage.Domain.Attachments;
 using Garage.Domain.Vehicles;
@@ -40,14 +41,16 @@ public sealed partial class DemoAccountService(
     /// </summary>
     public async Task<AppUser?> TryCreateAsync(int maxActive, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // READ COMMITTED explícito: a contagem, feita depois da trava, enxerga a conta de quem acabou de soltá-la.
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({CreationLockKey})", ct);
 
         if (await CountActiveAsync(ct) >= maxActive)
             return null;
 
         var user = await CreateAsync(ct);
-        await transaction.CommitAsync(ct);
+        // Sem o token da requisição: um cliente que cai durante o COMMIT não deixa uma conta gravada que a API não semeia.
+        await transaction.CommitAsync(CancellationToken.None);
         return user;
     }
 

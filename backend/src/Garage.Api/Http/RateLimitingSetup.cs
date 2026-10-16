@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Claims;
@@ -32,7 +33,16 @@ public static class RateLimitingSetup
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = async (context, _) =>
-                await ApiErrors.RateLimitExceeded.ToProblem().ExecuteAsync(context.HttpContext);
+            {
+                var http = context.HttpContext;
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                    http.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+
+                var error = IsDemoWrite(http)
+                    ? ApiErrors.DemoWriteQuotaExceeded(LimitsOf(http).DemoWritesPerHour)
+                    : ApiErrors.RateLimitExceeded;
+                await error.ToProblem().ExecuteAsync(http);
+            };
 
             options.AddPolicy(RateLimitPolicies.Login, http => ByIp(http, limits => limits.LoginPerMinute));
             options.AddPolicy(RateLimitPolicies.Public, http => ByIp(http, limits => limits.PublicPerMinute));
@@ -85,10 +95,13 @@ public static class RateLimitingSetup
         return $"ip:{new IPAddress(network)}/64";
     }
 
+    private static RateLimitOptions LimitsOf(HttpContext http) =>
+        http.RequestServices.GetRequiredService<IOptions<RateLimitOptions>>().Value;
+
     private static RateLimitPartition<string> Partition(
         HttpContext http, string key, Func<RateLimitOptions, int> limit, TimeSpan window)
     {
-        var permitLimit = limit(http.RequestServices.GetRequiredService<IOptions<RateLimitOptions>>().Value);
+        var permitLimit = limit(LimitsOf(http));
         return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = permitLimit,

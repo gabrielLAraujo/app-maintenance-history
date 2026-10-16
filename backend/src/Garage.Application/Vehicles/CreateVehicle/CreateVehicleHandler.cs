@@ -24,6 +24,9 @@ internal sealed class CreateVehicleHandler(
         if (currentUser.IsDemo)
         {
             var gate = await demoLimits.EnterVehicleGateAsync(ownerId, ct);
+            if (gate is null)
+                return DemoErrors.Busy;
+
             unitOfWork.AfterCommit(_ => Release(gate));
             unitOfWork.OnRollback(_ => Release(gate));
 

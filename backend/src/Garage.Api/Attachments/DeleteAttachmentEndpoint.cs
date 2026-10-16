@@ -12,6 +12,7 @@ internal sealed class DeleteAttachmentEndpoint : IEndpoint
             .WithName("DeleteAttachment")
             .WithTags("Attachments")
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             // Exclusão concorrente do mesmo anexo: o DELETE do segundo não afeta linha nenhuma (concurrency.conflict).

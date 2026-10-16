@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api, ensureAntiforgery, onUnauthorized } from '../api/client'
 import { networkProblem, toProblem, type Problem } from '../api/problem'
 import type { components } from '../api/schema'
@@ -42,12 +42,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [demoEnabled, setDemoEnabled] = useState(false)
   const [exitTo, setExitTo] = useState<string | null>(null)
 
+  const userRef = useRef<User | null>(null)
+  useEffect(() => {
+    userRef.current = user
+  }, [user])
+
   // Sessão expirada no meio do uso: limpa o usuário e os dados em cache. As rotas protegidas veem `user === null`
-  // e navegam para /login (sem loop: a tela de login não faz chamadas que dêem 401 "de sessão").
+  // e navegam para /login (sem loop: a tela de login não faz chamadas que dêem 401 "de sessão"). A demo vencida (24 h
+  // ou logout em outra aba) não tem senha para o login: o visitante volta à landing.
   useEffect(
     () =>
       onUnauthorized(() => {
         queryClient.clear()
+        setExitTo(userRef.current?.isDemo ? '/' : null)
         setUser(null)
       }),
     [queryClient],

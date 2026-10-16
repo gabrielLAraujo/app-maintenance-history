@@ -125,6 +125,17 @@ describe('conta demo', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /Tudo o que já foi feito no seu carro/ })).toBeInTheDocument()
   })
 
+  it('quando a sessão da demo vence no meio do uso, o visitante volta para a landing (não há senha para o login)', async () => {
+    const demo = demoAccount()
+    fakeApi({
+      'GET /api/auth/me': () => json(demo),
+      'GET /api/vehicles': () => problem(401, { status: 401 }),
+    })
+    const { router } = renderApp('/vehicles')
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+  })
+
   it('a conta comum que sai vai para o login', async () => {
     let loggedOut = false
     fakeApi({
