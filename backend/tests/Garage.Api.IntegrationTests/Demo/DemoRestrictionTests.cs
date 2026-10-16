@@ -58,6 +58,8 @@ public sealed class DemoRestrictionTests(GarageApiFactory factory)
             .Select(_ => demo.PostAsJsonAsync("/api/vehicles", TestData.Vehicle(), TestJson.Options)));
 
         Assert.Equal(3, responses.Count(response => response.StatusCode == HttpStatusCode.Created));
+        foreach (var rejected in responses.Where(response => response.StatusCode != HttpStatusCode.Created))
+            await rejected.AssertProblemAsync(HttpStatusCode.UnprocessableEntity, "demo.vehicle_limit_reached");
         Assert.Equal(5, (await VehiclesAsync(demo)).Count);
         foreach (var response in responses)
             response.Dispose();
@@ -74,12 +76,18 @@ public sealed class DemoRestrictionTests(GarageApiFactory factory)
         await demo.CreateVehicleAsync();
         using var third = await demo.PostAsJsonAsync("/api/vehicles", TestData.Vehicle(), TestJson.Options);
 
-        await third.AssertProblemAsync(HttpStatusCode.TooManyRequests, "rate_limit.exceeded");
+        // A cota é por hora: a mensagem diz isso (não o "aguarde um minuto" das outras), e o Retry-After diz quanto falta.
+        var problem = await third.AssertProblemAsync(HttpStatusCode.TooManyRequests, "demo.write_quota_exceeded");
+        Assert.Equal("A demonstração permite até 2 alterações por hora. Tente de novo mais tarde.", problem.GetProperty("detail").GetString());
+        Assert.True(third.Headers.RetryAfter?.Delta > TimeSpan.Zero, "Sem Retry-After.");
         // Ler continua liberado, e a conta real não entra nessa cota.
         Assert.Equal(4, (await VehiclesAsync(demo)).Count);
         using var real = await host.CreateUserClientAsync();
         for (var i = 0; i < 3; i++)
             await real.CreateVehicleAsync();
+        // Sair continua possível com a cota esgotada (/api/auth fica de fora).
+        using var logout = await demo.PostAsync("/api/auth/logout", content: null);
+        Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
     }
 
     [Fact]

@@ -65,14 +65,16 @@ public sealed class OpenApiContractTests(GarageApiFactory factory) : IDisposable
     }
 
     [Fact]
-    public async Task Every_endpoint_with_a_body_declares_400()
+    public async Task Every_write_endpoint_declares_400()
     {
-        // Corpo inválido (JSON quebrado, campo com tipo errado) ou antiforgery ausente dão 400 em qualquer rota com corpo.
+        // Antiforgery ausente ou inválido dá 400 em toda escrita (POST, PUT, PATCH, DELETE) sob /api, e um corpo inválido
+        // (JSON quebrado, campo com tipo errado) também.
+        string[] writes = ["post", "put", "patch", "delete"];
         using var document = await LoadDocumentAsync(factory.CreateClient());
         var failures = Operations(document.RootElement)
-            .Where(entry => entry.Operation.TryGetProperty("requestBody", out _))
+            .Where(entry => writes.Contains(entry.Method))
             .Where(entry => !entry.Operation.GetProperty("responses").TryGetProperty("400", out _))
-            .Select(entry => $"{entry.Method} {entry.Path}: tem corpo e não declara 400.")
+            .Select(entry => $"{entry.Method} {entry.Path}: é escrita e não declara 400.")
             .ToList();
 
         AssertNoFailures(failures);
