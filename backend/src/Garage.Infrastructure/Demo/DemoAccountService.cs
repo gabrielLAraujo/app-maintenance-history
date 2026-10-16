@@ -24,11 +24,31 @@ public sealed partial class DemoAccountService(
 {
     private const string EmailDomain = "demo.garagem.invalid";
 
+    // pg_advisory_xact_lock: uma criação de conta demo por vez, em qualquer instância da API, para o teto valer.
+    private const long CreationLockKey = 0x47415241_47450001;
+
     /// <summary>Contas demo ainda válidas (vencimento no futuro).</summary>
     public Task<int> CountActiveAsync(CancellationToken ct)
     {
         var now = clock.Now;
         return db.Users.CountAsync(user => user.IsDemo && user.DemoExpiresAt > now, ct);
+    }
+
+    /// <summary>
+    /// Cria a conta se ainda houver vaga (menos de <paramref name="maxActive"/> contas válidas); sem vaga, devolve null.
+    /// Contar e criar acontecem na mesma transação, sob uma trava do Postgres: visitantes simultâneos não furam o teto.
+    /// </summary>
+    public async Task<AppUser?> TryCreateAsync(int maxActive, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({CreationLockKey})", ct);
+
+        if (await CountActiveAsync(ct) >= maxActive)
+            return null;
+
+        var user = await CreateAsync(ct);
+        await transaction.CommitAsync(ct);
+        return user;
     }
 
     /// <summary>Cria a conta sem senha (ninguém entra nela por login), vencendo em <c>TtlHours</c>.</summary>
@@ -83,16 +103,40 @@ public sealed partial class DemoAccountService(
         if (expired.Count == 0)
             return new DemoPurgeResult(0, 0);
 
-        var keys = await db.Set<Attachment>()
-            .Where(attachment => db.Set<Vehicle>().Any(vehicle => vehicle.Id == attachment.VehicleId && expired.Contains(vehicle.OwnerId)))
-            .Select(attachment => attachment.StorageKey)
-            .ToListAsync(ct);
+        var keys = await StorageKeysOfAsync(expired, ct);
 
         var accounts = await db.Users
             .Where(user => expired.Contains(user.Id) && user.IsDemo && user.DemoExpiresAt <= now)
             .ExecuteDeleteAsync(ct);
 
-        // As linhas já saíram: os arquivos vão até o fim, mesmo com a parada do serviço.
+        return new DemoPurgeResult(accounts, await DeleteFilesAsync(keys));
+    }
+
+    /// <summary>
+    /// Apaga a conta demo e, em cascata, tudo o que é dela; depois, os arquivos dos anexos (o caminho da semeadura que
+    /// falha depois de copiar as fotos). Conta real não é tocada.
+    /// </summary>
+    public async Task DeleteAsync(Guid userId, CancellationToken ct)
+    {
+        var keys = await StorageKeysOfAsync([userId], ct);
+
+        var deleted = await db.Users
+            .Where(user => user.Id == userId && user.IsDemo)
+            .ExecuteDeleteAsync(ct);
+
+        if (deleted > 0)
+            await DeleteFilesAsync(keys);
+    }
+
+    private Task<List<string>> StorageKeysOfAsync(List<Guid> ownerIds, CancellationToken ct) =>
+        db.Set<Attachment>()
+            .Where(attachment => db.Set<Vehicle>().Any(vehicle => vehicle.Id == attachment.VehicleId && ownerIds.Contains(vehicle.OwnerId)))
+            .Select(attachment => attachment.StorageKey)
+            .ToListAsync(ct);
+
+    // As linhas já saíram: os arquivos vão até o fim, mesmo com a parada do serviço; a falha de um não impede os outros.
+    private async Task<int> DeleteFilesAsync(List<string> keys)
+    {
         var files = 0;
         foreach (var key in keys)
         {
@@ -107,14 +151,8 @@ public sealed partial class DemoAccountService(
             }
         }
 
-        return new DemoPurgeResult(accounts, files);
+        return files;
     }
-
-    /// <summary>Apaga a conta demo e, em cascata, tudo o que é dela. Conta real não é tocada.</summary>
-    public async Task DeleteAsync(Guid userId, CancellationToken ct) =>
-        await db.Users
-            .Where(user => user.Id == userId && user.IsDemo)
-            .ExecuteDeleteAsync(ct);
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Demo cleanup could not delete the file {StorageKey}")]
     private static partial void LogFileDeleteFailed(ILogger logger, string storageKey, Exception exception);

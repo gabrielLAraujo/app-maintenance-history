@@ -28,4 +28,10 @@ public sealed class RateLimitOptions
 
     /// <summary><c>POST /auth/demo</c>, por IP e por hora: cada demo cria uma conta e copia as fotos de exemplo.</summary>
     public int DemoPerHour { get; set; } = 5;
+
+    /// <summary>
+    /// Escritas (POST, PUT, PATCH, DELETE) de cada conta demo, por hora: limita o que um visitante acumula no banco nas
+    /// 24 horas da conta. As rotas de <c>/api/auth</c> (como o logout) ficam de fora; as contas reais não têm essa cota.
+    /// </summary>
+    public int DemoWritesPerHour { get; set; } = 300;
 }
