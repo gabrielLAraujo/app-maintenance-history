@@ -42,6 +42,7 @@ public static class AuthSetup
             options.Cookie.SameSite = SameSiteMode.Strict;
             options.ExpireTimeSpan = TimeSpan.FromDays(14);
             options.SlidingExpiration = true;
+            options.Events.OnValidatePrincipal = DemoSessionValidator.After(options.Events.OnValidatePrincipal);
 
             // API: sem sessão responde 401/403, nunca redireciona para uma página de login.
             options.Events.OnRedirectToLogin = context =>

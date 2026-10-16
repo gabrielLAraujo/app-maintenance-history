@@ -6,8 +6,10 @@ using Microsoft.Extensions.Options;
 namespace Garage.Infrastructure.Demo;
 
 /// <summary>
-/// Limpeza das contas demo vencidas (spec 3.3), a cada <c>Demo:Visitors:CleanupIntervalMinutes</c>: lotes de 50, repetidos
-/// enquanto o lote vier cheio. Não faz nada com a demo desligada ou com o intervalo 0.
+/// Limpeza das contas demo vencidas (spec 3.3): uma rodada na subida da API e depois a cada
+/// <c>Demo:Visitors:CleanupIntervalMinutes</c>, em lotes de 50, repetidos enquanto o lote vier cheio. Roda mesmo com a
+/// demo desligada (as contas que sobraram também vencem) e não roda com o intervalo 0. A rodada na subida mantém o prazo
+/// de 25 horas mesmo quando a API reinicia (deploy) antes de completar um intervalo.
 /// </summary>
 internal sealed partial class DemoCleanupService(
     IServiceScopeFactory scopes,
@@ -19,22 +21,28 @@ internal sealed partial class DemoCleanupService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var settings = options.Value;
-        if (!settings.Enabled || settings.CleanupIntervalMinutes <= 0)
+        var interval = options.Value.CleanupIntervalMinutes;
+        if (interval <= 0)
             return;
 
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(settings.CleanupIntervalMinutes), time);
-        while (await timer.WaitForNextTickAsync(stoppingToken))
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(interval), time);
+        do
         {
-            try
-            {
-                await RunOnceAsync(stoppingToken);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // Uma rodada que falha (banco fora do ar, por exemplo) não derruba a API: a próxima tenta de novo.
-                LogRunFailed(logger, ex);
-            }
+            await TryRunOnceAsync(stoppingToken);
+        }
+        while (await timer.WaitForNextTickAsync(stoppingToken));
+    }
+
+    private async Task TryRunOnceAsync(CancellationToken ct)
+    {
+        try
+        {
+            await RunOnceAsync(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Uma rodada que falha (banco fora do ar, por exemplo) não derruba a API: a próxima tenta de novo.
+            LogRunFailed(logger, ex);
         }
     }
 

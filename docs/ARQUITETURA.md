@@ -267,7 +267,7 @@ Lidas de `appsettings*.json`, user-secrets (desenvolvimento) ou variáveis de am
 | `App:TimeZone` | `America/Sao_Paulo` | Fuso que define o "hoje" (`IAppClock`). Validado ao subir: fuso desconhecido, a API não sobe (a imagem precisa de ICU e tzdata) |
 | `Auth:AllowRegistration` | `false` | Mapeia `POST /api/auth/register`; desligado, a rota nem existe. Ligar só para criar a conta |
 | `Demo:Enabled` | `false` (`true` em Development) | Mapeia `POST /api/demo/seed` |
-| `Demo:Visitors:Enabled` | `false` | Mapeia `POST /api/auth/demo` e liga a limpeza das contas demo vencidas |
+| `Demo:Visitors:Enabled` | `false` | Mapeia `POST /api/auth/demo` (a limpeza das contas demo vencidas roda mesmo desligada, na subida e a cada intervalo) |
 | `Demo:Visitors:TtlHours` · `MaxActive` · `MaxVehicles` · `CleanupIntervalMinutes` | `24` · `100` · `5` · `60` | Validade da conta demo, teto de contas ativas (`0` fecha a demo), veículos por conta demo e intervalo da limpeza (`0` desliga) |
 | `DataProtection:KeysPath` | vazio | Pasta das chaves do Data Protection; vazia, nada é persistido. Produção: `/data/keys` |
 | `Storage:RootPath` | vazio | Pasta dos anexos, obrigatória: vazia, a API não sobe. Produção: `/data/attachments` |

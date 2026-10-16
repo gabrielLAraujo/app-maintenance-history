@@ -143,11 +143,11 @@ Vêm do `appsettings*.json`, dos user-secrets (desenvolvimento) ou de variáveis
 | `App:TimeZone` | `America/Sao_Paulo` | Fuso (id IANA) que define o "hoje" da aplicação. Fuso desconhecido: a API não sobe |
 | `Auth:AllowRegistration` | `false` | `true` cria a rota `POST /api/auth/register`; desligada, ela nem existe (404). Ligue só para criar a conta |
 | `Demo:Enabled` | `false` (`true` no `appsettings.Development.json`) | `true` cria a rota `POST /api/demo/seed` (dados de exemplo) |
-| `Demo:Visitors:Enabled` | `false` | `true` cria `POST /api/auth/demo`: cada visitante ganha uma conta demo sem senha, já logada, com os dados de exemplo, e a limpeza das contas vencidas roda em segundo plano |
+| `Demo:Visitors:Enabled` | `false` | `true` cria `POST /api/auth/demo`: cada visitante ganha uma conta demo sem senha, já logada, com os dados de exemplo. A sessão da demo só vale enquanto a conta vale: vencida ou encerrada pelo logout, o cookie é recusado em toda a API |
 | `Demo:Visitors:TtlHours` | `24` | Validade da conta demo e da sessão dela |
 | `Demo:Visitors:MaxActive` | `100` | Teto de contas demo válidas ao mesmo tempo; atingido, `POST /api/auth/demo` responde 503 (`0` fecha a demo) |
 | `Demo:Visitors:MaxVehicles` | `5` | Quantos veículos uma conta demo pode ter (o 6º dá 422) |
-| `Demo:Visitors:CleanupIntervalMinutes` | `60` | Intervalo da limpeza das contas demo vencidas; `0` desliga a limpeza automática |
+| `Demo:Visitors:CleanupIntervalMinutes` | `60` | Intervalo da limpeza das contas demo vencidas, que roda também na subida da API e mesmo com a demo desligada (apaga as que sobraram); `0` desliga a limpeza automática |
 | `DataProtection:KeysPath` | vazio | Pasta das chaves do Data Protection. Vazia, as chaves não são persistidas e cada deploy derruba as sessões. Na imagem: `/data/keys` |
 | `Storage:RootPath` | vazio | Pasta dos arquivos dos anexos, obrigatória: vazia, a API não sobe. Na imagem: `/data/attachments` |
 | `Fipe:BaseUrl` | `https://fipe.parallelum.com.br/api/v2/` | URL base da API da FIPE |
