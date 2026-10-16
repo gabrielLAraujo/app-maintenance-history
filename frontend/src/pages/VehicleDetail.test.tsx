@@ -439,12 +439,13 @@ describe('cabeçalho: capa e indicadores', () => {
     expect(screen.queryByText('Adicionar foto de capa')).not.toBeInTheDocument()
   })
 
-  it('sem capa, convida a escolher uma foto no histórico', async () => {
+  it('sem capa, explica como escolher uma foto do histórico (sem link que não leva a lugar nenhum)', async () => {
     fakeApi({ [`GET /api/vehicles/${id}`]: () => json({ ...civicDto, coverPhotoId: null }) })
-    renderApp(`/vehicles/${id}?tab=reminders`)
+    renderApp(`/vehicles/${id}`)
 
-    const invite = await screen.findByRole('link', { name: /Adicionar foto de capa/ })
-    expect(invite).toHaveAttribute('href', `/vehicles/${id}`)
+    expect(await screen.findByText('Sem foto de capa')).toBeInTheDocument()
+    expect(screen.getByText('Abra um registro com foto no histórico e escolha "Usar como capa".')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /foto de capa/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Civic EK' })).not.toBeInTheDocument()
   })
 

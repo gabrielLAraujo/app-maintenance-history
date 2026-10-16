@@ -52,10 +52,12 @@ export function AppShell() {
   const closeMenu = () => setMenuOpen(false)
 
   async function handleLogout() {
+    // O visitante da demo volta à landing (a conta dele acabou); a conta comum vai para o login. Sem o "de onde veio" do
+    // RequireAuth: quem sai por vontade própria volta ao início quando entrar de novo.
+    const destination = user?.isDemo ? '/' : '/login'
     setLeaving(true)
-    await logout()
-    // Sem o "de onde veio" do RequireAuth: quem sai por vontade própria volta ao início quando entrar de novo.
-    navigate('/login', { replace: true })
+    await logout(destination)
+    navigate(destination, { replace: true })
   }
 
   return (

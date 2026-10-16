@@ -37,12 +37,16 @@ export function SectionLoading() {
   )
 }
 
-/** Rotas que exigem login. Sem sessão (nunca houve ou expirou), vai para /login e guarda de onde veio. */
+/**
+ * Rotas que exigem login. Sem sessão (nunca houve ou expirou), vai para /login e guarda de onde veio. Depois de um logout,
+ * vai para o destino que ele escolheu (a demo volta à landing), sem guardar a tela.
+ */
 export function RequireAuth() {
-  const { user, loading } = useAuth()
+  const { user, loading, exitTo } = useAuth()
   const location = useLocation()
 
   if (loading) return <PageLoading />
+  if (!user && exitTo) return <Navigate to={exitTo} replace />
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
 
   return <Outlet />

@@ -204,6 +204,26 @@ describe('detalhe do registro', () => {
     expect(sent(calls, 'DELETE', recordPath)[0].headers.get('X-XSRF-TOKEN')).toBe('test-token')
   })
 
+  it('excluir o registro que tem a foto de capa não deixa a capa quebrada na página do veículo', async () => {
+    let vehicleCalls = 0
+    fakeApi({
+      // Primeiro com a capa (foto deste registro); depois da exclusão, a busca nova fica pendente: a tela mostra o cache.
+      [`GET /api/vehicles/${id}`]: () =>
+        ++vehicleCalls === 1 ? json({ ...civicDto, coverPhotoId: photo.id }) : new Promise<Response>(() => {}),
+      [`DELETE ${recordPath}`]: () => noContent(),
+    })
+    renderApp(`/vehicles/${id}/records/${recordId}`)
+    const typist = userEvent.setup()
+
+    await typist.click(await screen.findByRole('button', { name: 'Excluir registro' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Excluir este registro?' })
+    await typist.click(within(dialog).getByRole('button', { name: 'Excluir de vez' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Civic EK' })).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Civic EK' })).not.toBeInTheDocument()
+    expect(screen.getByText('Sem foto de capa')).toBeInTheDocument()
+  })
+
   it('cancelar a exclusão não apaga nada', async () => {
     const calls = fakeApi()
     renderApp(`/vehicles/${id}/records/${recordId}`)

@@ -18,7 +18,10 @@ type AuthContextValue = {
   register(email: string, password: string): Promise<Problem | null>
   /** Abre uma conta demo, já logada, com os dados de exemplo. Mesmo retorno de `login`. */
   startDemo(): Promise<Problem | null>
-  logout(): Promise<void>
+  /** Encerra a sessão. `exitTo` é para onde as telas protegidas mandam depois (padrão: o login). */
+  logout(exitTo?: string): Promise<void>
+  /** Destino escolhido no último logout; `null` quando a sessão acabou por outro motivo (expirou). */
+  exitTo: string | null
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -37,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [registrationEnabled, setRegistrationEnabled] = useState(false)
   const [demoEnabled, setDemoEnabled] = useState(false)
+  const [exitTo, setExitTo] = useState<string | null>(null)
 
   // Sessão expirada no meio do uso: limpa o usuário e os dados em cache. As rotas protegidas veem `user === null`
   // e navegam para /login (sem loop: a tela de login não faz chamadas que dêem 401 "de sessão").
@@ -87,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const me = await fetchCurrentUser()
         if (!me) return { status: 401, detail: 'Não foi possível abrir a sessão. Tente de novo.' }
 
+        setExitTo(null)
         setUser(me)
         return null
       } catch {
@@ -110,19 +115,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const startDemo = useCallback(() => startSession(() => api.POST('/api/auth/demo')), [startSession])
 
-  const logout = useCallback(async () => {
-    try {
-      await api.POST('/api/auth/logout')
-    } catch {
-      // Sem rede não dá para avisar a API; a tela sai da sessão mesmo assim.
-    }
-    queryClient.clear()
-    setUser(null)
-  }, [queryClient])
+  const logout = useCallback(
+    async (next = '/login') => {
+      try {
+        await api.POST('/api/auth/logout')
+      } catch {
+        // Sem rede não dá para avisar a API; a tela sai da sessão mesmo assim.
+      }
+      queryClient.clear()
+      setExitTo(next)
+      setUser(null)
+    },
+    [queryClient],
+  )
 
   const value = useMemo(
-    () => ({ user, loading, registrationEnabled, demoEnabled, login, register, startDemo, logout }),
-    [user, loading, registrationEnabled, demoEnabled, login, register, startDemo, logout],
+    () => ({ user, loading, registrationEnabled, demoEnabled, login, register, startDemo, logout, exitTo }),
+    [user, loading, registrationEnabled, demoEnabled, login, register, startDemo, logout, exitTo],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>
