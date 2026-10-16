@@ -1,6 +1,8 @@
 using Garage.Application.Abstractions.Messaging;
 using Garage.Application.Abstractions.Ports;
+using Garage.Application.Spending;
 using Garage.Domain.Common;
+using Garage.Domain.Records;
 using Garage.Domain.Vehicles;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,9 +29,17 @@ internal sealed class GetVehiclesHandler(
                 v.Model,
                 ModelYear = v.Year.Model,
                 v.Plate,
-                v.CurrentOdometer
+                v.CurrentOdometer,
+                v.CoverPhotoId
             })
             .ToListAsync(ct);
+
+        // Uma única consulta para os totais dos cards (spec 5.4): os registros de todos os veículos do usuário.
+        var vehicleIds = rows.Select(row => row.Id).ToList();
+        var records = await db.Query<ServiceRecord>()
+            .Where(r => vehicleIds.Contains(r.VehicleId))
+            .ToListAsync(ct);
+        var byVehicle = records.ToLookup(r => r.VehicleId);
 
         IReadOnlyList<VehicleSummaryDto> vehicles = rows
             .Select(row => new VehicleSummaryDto(
@@ -39,7 +49,10 @@ internal sealed class GetVehiclesHandler(
                 row.Model,
                 row.ModelYear,
                 row.Plate?.Value,
-                row.CurrentOdometer.Km))
+                row.CurrentOdometer.Km,
+                row.CoverPhotoId,
+                SpendingMath.Total(byVehicle[row.Id]),
+                byVehicle[row.Id].Select(r => (DateOnly?)r.Date).Max()))
             .ToList();
         return Result<IReadOnlyList<VehicleSummaryDto>>.Success(vehicles);
     }
