@@ -79,6 +79,38 @@ public sealed class CoverPhotoTests(GarageApiFactory factory)
         Assert.Null(CoverPhotoId(await owner.GetVehicleAsync(vehicleId)));
     }
 
+    [Fact]
+    public async Task Deleting_the_record_of_the_cover_photo_clears_the_cover()
+    {
+        using var owner = await UserAsync();
+        var vehicleId = await owner.CreateVehicleAsync();
+        var recordId = await owner.CreateRecordAsync(vehicleId);
+        var photoId = Id(await owner.UploadAttachmentAsync(vehicleId, recordId, TestImages.TinyPng(), "a.png"));
+        using (var set = await PutCoverAsync(owner, vehicleId, photoId))
+            Assert.Equal(HttpStatusCode.NoContent, set.StatusCode);
+
+        using (var delete = await owner.DeleteAsync($"/api/vehicles/{vehicleId}/records/{recordId}"))
+            Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+
+        Assert.Null(CoverPhotoId(await owner.GetVehicleAsync(vehicleId)));
+    }
+
+    [Fact]
+    public async Task Deleting_a_vehicle_with_a_cover_works()
+    {
+        // A exclusão em cascata apaga o anexo, cuja FK da capa (SET NULL) aponta para o próprio veículo que está saindo.
+        using var owner = await UserAsync();
+        var (vehicleId, photoId) = await VehicleWithPhotoAsync(owner);
+        using (var set = await PutCoverAsync(owner, vehicleId, photoId))
+            Assert.Equal(HttpStatusCode.NoContent, set.StatusCode);
+
+        using var delete = await owner.DeleteAsync($"/api/vehicles/{vehicleId}");
+
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+        using var gone = await owner.GetAsync($"/api/vehicles/{vehicleId}");
+        await gone.AssertProblemAsync(HttpStatusCode.NotFound, "vehicle.not_found");
+    }
+
     private async Task<HttpClient> UserAsync()
     {
         factory.Clock.SetUtcNow(Now);
