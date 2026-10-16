@@ -22,7 +22,7 @@ export function VehicleEdit() {
 
   if (vehicle.isPending) {
     return (
-      <p className="flex items-center gap-2 py-8 text-slate-600">
+      <p className="flex items-center gap-2 py-8 text-ink-2">
         <Spinner size="sm" label={null} /> Carregando veículo…
       </p>
     )
@@ -101,7 +101,7 @@ function DeleteVehicle({ id, name }: { id: string; name: string }) {
   return (
     <Card>
       <h2 className="text-base font-semibold">Excluir veículo</h2>
-      <p className="mt-1 text-sm text-slate-600">Apaga o veículo com todo o histórico, lembretes e anexos. Não dá para desfazer.</p>
+      <p className="mt-1 text-sm text-ink-2">Apaga o veículo com todo o histórico, lembretes e anexos. Não dá para desfazer.</p>
       <Button variant="danger" className="mt-4" onClick={() => setConfirming(true)}>
         Excluir veículo
       </Button>
@@ -109,7 +109,7 @@ function DeleteVehicle({ id, name }: { id: string; name: string }) {
       {confirming && (
         <Modal title="Excluir este veículo?" onClose={() => setConfirming(false)}>
           <div className="mt-3 space-y-4">
-            <p className="text-slate-700">
+            <p className="text-ink-2">
               <strong>{name}</strong> e tudo que foi registrado nele serão apagados de vez.
             </p>
             {remove.error && <Alert variant="error">{errorMessage(remove.error)}</Alert>}

@@ -1,4 +1,6 @@
 using Garage.Api.Endpoints;
+using Garage.Application.Abstractions.Ports;
+using Garage.Infrastructure.Demo;
 using Garage.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 
@@ -14,8 +16,13 @@ internal sealed class LogoutEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
-    private static async Task<IResult> HandleAsync(SignInManager<AppUser> signInManager)
+    private static async Task<IResult> HandleAsync(
+        SignInManager<AppUser> signInManager, ICurrentUser currentUser, DemoAccountService demos, CancellationToken ct)
     {
+        // A demo que sai não volta: a conta vence agora e sai na próxima limpeza.
+        if (currentUser.IsDemo)
+            await demos.ExpireNowAsync(currentUser.UserId, ct);
+
         await signInManager.SignOutAsync();
         return TypedResults.NoContent();
     }

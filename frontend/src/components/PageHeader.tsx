@@ -16,13 +16,13 @@ export function PageHeader({ title, back, actions, children }: Props) {
   return (
     <header className="mb-4">
       {back && (
-        <Link to={back.to} className="-ml-1 inline-flex min-h-11 items-center px-1 text-sm font-medium text-slate-600 hover:text-slate-900">
+        <Link to={back.to} className="-ml-1 inline-flex min-h-11 items-center px-1 text-sm font-semibold text-muted hover:text-ink">
           <span aria-hidden="true">←&nbsp;</span>
           {back.label}
         </Link>
       )}
       <div className="flex items-start justify-between gap-3">
-        <h1 className="min-w-0 text-2xl font-bold tracking-tight">{title}</h1>
+        <h1 className="min-w-0 font-display text-3xl leading-tight sm:text-4xl">{title}</h1>
         {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
       </div>
       {children}

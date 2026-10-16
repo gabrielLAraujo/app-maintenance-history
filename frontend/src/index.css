@@ -1,7 +1,64 @@
 @import 'tailwindcss';
 
+/* "Ficha técnica" (spec, seção 2): grafite e sinal âmbar, números em mono. */
+@theme {
+  --color-ink: #14161b;
+  --color-ink-2: #3a3f4b;
+  --color-muted: #5d6472;
+  --color-line: #e3e5ea;
+  --color-line-strong: #cdd1d9;
+  --color-track: #eef0f3;
+  --color-ground: #f3f4f6;
+  --color-surface: #ffffff;
+
+  --color-amber: #f5a524;
+  --color-amber-hover: #f7b545;
+  --color-amber-ink: #8a5100;
+  --color-amber-soft: #fff4dc;
+  --color-amber-line: #f7d58b;
+  --color-focus: #fbd38d;
+
+  --color-danger: #b42318;
+  --color-danger-hover: #912018;
+  --color-danger-soft: #fef3f2;
+  --color-danger-line: #fecdca;
+
+  --color-ok: #067647;
+  --color-ok-soft: #ecfdf3;
+  --color-ok-line: #abefc6;
+
+  --color-plate: #1e3a8a;
+  --color-plate-soft: #e8eeff;
+  --color-plate-line: #c7d4fe;
+
+  --font-sans: 'Archivo Variable', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Raios: placa e badges, controles, cartões, capas. */
+  --radius-chip: 6px;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-cover: 20px;
+}
+
+/* Títulos de página e da landing: Archivo 800, mais larga. */
+@utility font-display {
+  font-weight: 800;
+  font-stretch: 112%;
+  letter-spacing: -0.02em;
+}
+
+/* Sobretítulo: mono, caixa alta, espaçado. */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-ground text-ink antialiased;
   }
 }

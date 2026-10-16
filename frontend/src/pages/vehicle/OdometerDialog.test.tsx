@@ -1,10 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { dueRemindersKey } from '../../api/hooks/reminders'
 import { json, mockFetch, noContent, problem, resetCookies, type Call, type Handler } from '../../test/fetch-mock'
 import { renderApp } from '../../test/renderApp'
-import { signedInRoutes } from '../../test/signedIn'
+import { signedInRoutes, vehicleSummaryRoute } from '../../test/signedIn'
 
 const id = '0198a1c2-0000-7000-8000-0000000000c1'
 
@@ -33,6 +32,7 @@ const summary = { id, displayName: 'Civic EK', make: 'Honda', model: 'Civic', mo
 function fakeApi(routes: Record<string, Handler> = {}) {
   return mockFetch({
     ...signedInRoutes(),
+    ...vehicleSummaryRoute(id),
     'GET /api/vehicles': () => json([summary]),
     'GET /api/reminders/due': () => json([]),
     [`GET /api/vehicles/${id}`]: () => json(civicDto),
@@ -95,20 +95,21 @@ describe('tela do veículo e atualização de km', () => {
   })
 
   it('a km nova deixa os lembretes e a lista de veículos velhos (o painel busca de novo)', async () => {
-    fakeApi({ [`POST /api/vehicles/${id}/odometer`]: () => noContent() })
+    const calls = fakeApi({ [`POST /api/vehicles/${id}/odometer`]: () => noContent() })
     const { queryClient } = renderApp('/')
     const typist = userEvent.setup()
 
-    await typist.click(await screen.findByRole('heading', { level: 2, name: 'Civic EK' }))
+    await typist.click(await screen.findByRole('heading', { level: 3, name: 'Civic EK' }))
     await typist.click(await screen.findByRole('button', { name: 'Atualizar km' }))
-    expect(queryClient.getQueryState(dueRemindersKey)?.isInvalidated).toBe(false)
 
     await typist.clear(screen.getByLabelText('Km do painel'))
     await typist.type(screen.getByLabelText('Km do painel'), '216000')
+    // Os lembretes vencidos e próximos (painel e contador do menu) estão na tela: a km nova os busca de novo.
+    const dueBefore = calls.filter((call) => call.path === '/api/reminders/due').length
     await typist.click(screen.getByRole('button', { name: 'Salvar km' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(queryClient.getQueryState(dueRemindersKey)?.isInvalidated).toBe(true)
+    await waitFor(() => expect(calls.filter((call) => call.path === '/api/reminders/due').length).toBeGreaterThan(dueBefore))
     expect(queryClient.getQueryState(['vehicles'])?.isInvalidated).toBe(true)
   })
 

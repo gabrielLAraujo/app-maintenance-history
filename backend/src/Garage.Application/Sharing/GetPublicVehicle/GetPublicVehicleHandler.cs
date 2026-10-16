@@ -40,7 +40,12 @@ internal sealed class GetPublicVehicleHandler(IReadDbContext db, IAppClock clock
                 v.Fuel,
                 v.Nickname,
                 Plate = v.Plate == null ? null : v.Plate.Value,
-                CurrentOdometer = v.CurrentOdometer.Km
+                CurrentOdometer = v.CurrentOdometer.Km,
+                // A capa só aparece se a foto for pública (spec 4.3); a capa do dono não muda.
+                CoverPhotoId = db.Query<Attachment>()
+                    .Where(a => a.Id == v.CoverPhotoId && a.VehicleId == v.Id && a.Kind == AttachmentKind.Photo && a.IsPublic)
+                    .Select(a => (Guid?)a.Id)
+                    .FirstOrDefault()
             })
             .FirstOrDefaultAsync(ct);
         if (vehicle is null)
@@ -60,6 +65,9 @@ internal sealed class GetPublicVehicleHandler(IReadDbContext db, IAppClock clock
             link.IncludePlate ? vehicle.Plate : null,
             vehicle.CurrentOdometer,
             link.IncludeCosts,
+            vehicle.CoverPhotoId is { } coverId
+                ? new PublicPhotoDto(coverId, ShareLinkMapping.PhotoPath(link.Token, coverId))
+                : null,
             records,
             nextCursor);
     }

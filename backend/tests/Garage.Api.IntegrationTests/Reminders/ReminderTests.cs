@@ -531,6 +531,31 @@ public sealed class ReminderTests(GarageApiFactory factory)
         Assert.Empty(none);
     }
 
+    [Fact]
+    public async Task All_reminders_include_the_ones_that_are_ok()
+    {
+        factory.Clock.SetUtcNow(Now);
+        using var mine = await factory.CreateUserClientAsync();
+        using var theirs = await factory.CreateUserClientAsync();
+        var vehicleId = await mine.CreateVehicleAsync(TestData.Vehicle(currentOdometer: 100_000));
+        var theirVehicle = await theirs.CreateVehicleAsync(TestData.Vehicle(currentOdometer: 100_000));
+        // Em dia: 2026-09-01 + 12 meses está a quase um ano.
+        var ok = await mine.CreateReminderAsync(vehicleId, TestData.Reminder(
+            title: "Em dia", intervalKm: null, intervalMonths: 12, lastDoneOdometer: null));
+        // Vencido por km: 90.000 + 5.000 - 100.000 = -5.000.
+        var overdue = await mine.CreateReminderAsync(vehicleId, TestData.Reminder(
+            title: "Vencido", intervalKm: 5_000, lastDoneOdometer: 90_000));
+        await theirs.CreateReminderAsync(theirVehicle, TestData.Reminder(
+            title: "De outro usuário", intervalKm: 5_000, lastDoneOdometer: 90_000));
+
+        var all = (await mine.GetFromJsonAsync<JsonElement>("/api/reminders", TestJson.Options)).EnumerateArray().ToList();
+        var due = (await DueAsync(mine)).EnumerateArray().ToList();
+
+        Assert.Equal([overdue, ok], all.Select(item => item.GetProperty("reminderId").GetGuid()));
+        Assert.Equal(["overdue", "ok"], all.Select(item => item.GetProperty("status").GetProperty("state").GetString()));
+        Assert.Equal([overdue], due.Select(item => item.GetProperty("reminderId").GetGuid()));
+    }
+
     private static string RemindersUrl(Guid vehicleId) => $"/api/vehicles/{vehicleId}/reminders";
 
     private static async Task<JsonElement> DueAsync(HttpClient client) =>

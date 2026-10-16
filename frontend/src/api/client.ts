@@ -12,9 +12,9 @@ const EXPECTED_401 = new Set(['/api/auth/login', '/api/auth/me'])
 // mandar ninguém para o login (quem abre um link compartilhado nem tem conta).
 const PUBLIC_PREFIX = '/api/public/'
 
-// O token antiforgery é vinculado ao usuário: depois de abrir ou encerrar a sessão precisa ser buscado de novo,
-// senão a próxima escrita volta 400 auth.antiforgery_invalid.
-const IDENTITY_CHANGES = new Set(['/api/auth/login', '/api/auth/register', '/api/auth/logout'])
+// O token antiforgery é vinculado ao usuário: depois de abrir (login, cadastro, demo) ou encerrar a sessão precisa ser
+// buscado de novo, senão a próxima escrita volta 400 auth.antiforgery_invalid.
+const IDENTITY_CHANGES = new Set(['/api/auth/login', '/api/auth/register', '/api/auth/demo', '/api/auth/logout'])
 
 let unauthorizedHandler: (() => void) | null = null
 let tokenRequest: Promise<void> | null = null

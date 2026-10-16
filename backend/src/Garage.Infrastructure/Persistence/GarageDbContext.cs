@@ -26,6 +26,8 @@ public sealed class GarageDbContext(DbContextOptions<GarageDbContext> options)
             user.ToTable("asp_net_users");
             user.HasIndex(u => u.NormalizedUserName).HasDatabaseName("ix_asp_net_users_normalized_user_name");
             user.HasIndex(u => u.NormalizedEmail).HasDatabaseName("ix_asp_net_users_normalized_email");
+            // A limpeza busca as contas demo vencidas: índice só sobre elas.
+            user.HasIndex(u => u.DemoExpiresAt).HasDatabaseName("ix_asp_net_users_demo_expires_at").HasFilter("is_demo");
         });
         builder.Entity<IdentityRole<Guid>>(role =>
         {

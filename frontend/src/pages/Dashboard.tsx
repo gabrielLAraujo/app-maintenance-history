@@ -1,37 +1,55 @@
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useSeedDemo } from '../api/hooks/demo'
 import { useDueReminders } from '../api/hooks/reminders'
+import { useGarageSummary } from '../api/hooks/summary'
 import { useVehicles } from '../api/hooks/vehicles'
 import type { components } from '../api/schema'
 import { errorMessage, problemOf } from '../api/unwrap'
 import { Alert } from '../components/Alert'
+import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { ButtonLink } from '../components/ButtonLink'
 import { Card } from '../components/Card'
 import { Empty } from '../components/Empty'
-import { Km } from '../components/Km'
+import { Kpi } from '../components/Kpi'
+import { MonthBars } from '../components/MonthBars'
 import { PageHeader } from '../components/PageHeader'
+import { Skeleton } from '../components/Skeleton'
 import { Spinner } from '../components/Spinner'
-import { formatKm, toNumber } from '../lib/format'
+import { VehicleCard } from '../components/VehicleCard'
+import { formatDate, formatMoney, todayInSaoPaulo, toNumber } from '../lib/format'
+import { statusSummary } from './vehicle/reminderStatus'
 
 type Schemas = components['schemas']
 
 function Loading({ children }: { children: string }) {
   return (
-    <p className="flex items-center gap-2 py-8 text-slate-600">
+    <p className="flex items-center gap-2 py-8 text-muted">
       <Spinner size="sm" label={null} /> {children}
     </p>
   )
 }
 
-/** Painel: o que pede atenção (lembretes vencidos e próximos) e os veículos; sem veículos, o caminho para começar. */
+const MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+/** "2024-11-11" → "nov/2024". */
+const monthYear = (iso: string) => `${MONTHS_SHORT[Number(iso.slice(5, 7)) - 1] ?? ''}/${iso.slice(0, 4)}`
+
+/**
+ * Painel: o ano em números (gasto, lembretes, registros), o que pede atenção, os veículos em cards com capa, os gastos
+ * por mês e os últimos serviços. Sem veículos, o caminho para começar.
+ */
 export function Dashboard() {
   const vehicles = useVehicles()
-  const hasVehicles = (vehicles.data?.length ?? 0) > 0
+  const count = vehicles.data?.length ?? 0
+  const hasVehicles = count > 0
 
   return (
     <div>
-      <PageHeader title="Seus veículos" actions={hasVehicles && <ButtonLink to="/vehicles/new">Novo veículo</ButtonLink>} />
+      <PageHeader title="Sua garagem" actions={hasVehicles && <ButtonLink to="/vehicles/new">Novo veículo</ButtonLink>}>
+        {hasVehicles && <p className="mt-1 text-muted">{plural(count, 'veículo', 'veículos')}</p>}
+      </PageHeader>
 
       {vehicles.isPending ? (
         <Loading>Carregando veículos…</Loading>
@@ -46,11 +64,130 @@ export function Dashboard() {
         <EmptyGarage />
       ) : (
         <div className="space-y-6">
-          <Attention />
-          <VehicleCards vehicles={vehicles.data} />
+          <YearNumbers />
+          <div className="grid items-start gap-6 lg:grid-cols-3">
+            <div className="space-y-6 lg:col-span-2">
+              <Attention />
+              <section aria-labelledby="vehicles-title">
+                <h2 id="vehicles-title" className="mb-3 text-lg font-bold">
+                  Veículos
+                </h2>
+                <ul className="grid gap-4 sm:grid-cols-2">
+                  {vehicles.data.map((vehicle) => (
+                    <li key={vehicle.id}>
+                      <VehicleCard vehicle={vehicle} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+            <div className="space-y-6">
+              <YearChart />
+              <LatestServices />
+            </div>
+          </div>
         </div>
       )}
     </div>
+  )
+}
+
+/** Os quatro números do topo: gasto no ano, vencidos, próximos e registros. */
+function YearNumbers() {
+  const summary = useGarageSummary()
+  const due = useDueReminders()
+
+  const overdue = due.data?.filter((item) => item.status.state === 'overdue') ?? []
+  const soon = due.data?.filter((item) => item.status.state === 'dueSoon') ?? []
+  const first = (items: Reminder[], none: string) => (items[0] ? `${items[0].title} · ${items[0].vehicleName}` : none)
+  const reminderValue = (items: Reminder[]) => (due.data ? String(items.length) : '—')
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      {summary.data ? (
+        <Kpi
+          label={`Gasto em ${summary.data.year}`}
+          value={formatMoney(toNumber(summary.data.yearCost))}
+          hint={`${plural(toNumber(summary.data.yearRecordCount) ?? 0, 'serviço', 'serviços')} em ${plural(toNumber(summary.data.yearVehicleCount) ?? 0, 'veículo', 'veículos')}`}
+        />
+      ) : summary.error ? (
+        <Kpi label="Gasto no ano" value="—" hint="Não foi possível carregar." />
+      ) : (
+        <Skeleton className="h-[106px] rounded-card" />
+      )}
+      <Kpi label="Vencidos" value={reminderValue(overdue)} tone={overdue.length > 0 ? 'danger' : 'default'} hint={first(overdue, 'nada vencido')} />
+      <Kpi label="Vencem em breve" value={reminderValue(soon)} tone={soon.length > 0 ? 'amber' : 'default'} hint={first(soon, 'nada por perto')} />
+      {summary.data ? (
+        <Kpi
+          label="Registros"
+          value={String(toNumber(summary.data.recordCount) ?? 0)}
+          hint={summary.data.firstRecordDate ? `desde ${monthYear(summary.data.firstRecordDate)}` : 'nenhum ainda'}
+        />
+      ) : summary.error ? (
+        <Kpi label="Registros" value="—" />
+      ) : (
+        <Skeleton className="h-[106px] rounded-card" />
+      )}
+    </div>
+  )
+}
+
+function SideCard({ id, title, aside, children }: { id: string; title: string; aside?: ReactNode; children: ReactNode }) {
+  return (
+    <Card aria-labelledby={id}>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id={id} className="text-lg font-bold">
+          {title}
+        </h2>
+        {aside}
+      </div>
+      <div className="mt-4">{children}</div>
+    </Card>
+  )
+}
+
+/** Gastos de janeiro a dezembro do ano corrente, com o mês atual em destaque. */
+function YearChart() {
+  const summary = useGarageSummary()
+  // O mês de hoje no fuso da API, lido uma vez: é ele que fica em destaque.
+  const [current] = useState(() => todayInSaoPaulo().slice(0, 7))
+  if (!summary.data) return summary.error ? null : <Skeleton className="h-64 rounded-card" />
+
+  const { year, byMonth } = summary.data
+
+  return (
+    <SideCard id="year-chart-title" title={`Gastos em ${year}`} aside={<span className="text-[13px] text-muted">por mês</span>}>
+      <MonthBars months={byMonth} highlight={current} label={`Gastos por mês em ${year}`} />
+    </SideCard>
+  )
+}
+
+/** Os quatro serviços mais recentes de todos os veículos. */
+function LatestServices() {
+  const summary = useGarageSummary()
+  if (!summary.data || summary.data.recentRecords.length === 0) return null
+
+  return (
+    <SideCard id="latest-title" title="Últimos serviços">
+      <ul className="divide-y divide-track">
+        {summary.data.recentRecords.map((record) => (
+          <li key={record.id}>
+            <Link
+              to={`/vehicles/${record.vehicleId}/records/${record.id}`}
+              className="-mx-2 flex items-center gap-3 rounded-control px-2 py-2.5 hover:bg-ground focus-visible:outline-2 focus-visible:outline-ink"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold">{record.title}</span>
+                <span className="block text-[13px] text-muted">
+                  {record.vehicleName} · {formatDate(record.date)}
+                </span>
+              </span>
+              <span className="font-mono text-sm font-semibold">{formatMoney(toNumber(record.totalCost))}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </SideCard>
   )
 }
 
@@ -65,7 +202,7 @@ function EmptyGarage() {
       actions={
         <>
           <ButtonLink to="/vehicles/new">Cadastrar veículo</ButtonLink>
-          <p className="text-sm text-slate-500">ou, para ver o app funcionando antes:</p>
+          <p className="text-sm text-muted">ou, para ver o app funcionando antes:</p>
           <Button variant="secondary" loading={seed.isPending} onClick={() => seed.mutate()}>
             Carregar dados de exemplo
           </Button>
@@ -85,73 +222,18 @@ function EmptyGarage() {
   )
 }
 
-function VehicleCards({ vehicles }: { vehicles: Schemas['VehicleSummaryDto'][] }) {
-  return (
-    <ul className="grid gap-3 sm:grid-cols-2">
-      {vehicles.map((vehicle) => {
-        const fullName = `${vehicle.make} ${vehicle.model} ${vehicle.modelYear}`
-
-        return (
-          <li key={vehicle.id}>
-            <Link
-              to={`/vehicles/${vehicle.id}`}
-              className="block h-full rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:shadow-md hover:ring-slate-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="truncate text-lg font-semibold">{vehicle.displayName}</h2>
-                  {vehicle.displayName !== fullName && <p className="truncate text-sm text-slate-500">{fullName}</p>}
-                </div>
-                {vehicle.plate && (
-                  <span className="shrink-0 rounded-md border border-slate-300 bg-slate-50 px-2 py-0.5 font-mono text-sm font-semibold tracking-wider">
-                    {vehicle.plate}
-                  </span>
-                )}
-              </div>
-              <Km value={vehicle.currentOdometer} className="mt-3 block text-xl font-semibold text-slate-800" />
-            </Link>
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
 type Reminder = Schemas['DueReminderDto']
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
-// Cada eixo do lembrete (km, tempo) vale por si: positivo falta, zero vence agora, negativo já passou.
-function axisText(remaining: number | null, ahead: (n: number) => string, now: string, late: (n: number) => string) {
-  if (remaining === null) return null
-  return remaining > 0 ? ahead(remaining) : remaining === 0 ? now : late(-remaining)
-}
-
-function statusText({ kmRemaining, daysRemaining }: Schemas['ReminderStatusDto']): string {
-  const km = axisText(
-    toNumber(kmRemaining),
-    (n) => `faltam ${formatKm(n)}`,
-    'vence agora',
-    (n) => `${formatKm(n)} atrasado`,
-  )
-  const days = axisText(
-    toNumber(daysRemaining),
-    (n) => `faltam ${plural(n, 'dia', 'dias')}`,
-    'vence hoje',
-    (n) => `${plural(n, 'dia', 'dias')} atrasado`,
-  )
-
-  return [km, days].filter(Boolean).join(' · ')
-}
-
 const severity = { overdue: 0, dueSoon: 1, ok: 2 } satisfies Record<Schemas['ReminderState'], number>
 
 const appearance = {
-  overdue: { label: 'Vencido', bar: 'bg-red-500', badge: 'bg-red-100 text-red-800' },
-  dueSoon: { label: 'Próximo', bar: 'bg-amber-500', badge: 'bg-amber-100 text-amber-900' },
+  overdue: { label: 'Vencido', row: 'border-danger-line bg-danger-soft', icon: 'text-danger' },
+  dueSoon: { label: 'Próximo', row: 'border-amber-line bg-amber-soft', icon: 'text-amber-ink' },
 } as const
 
-/** Lembretes vencidos (vermelho) e próximos (âmbar) de todos os veículos, os vencidos primeiro. */
+/** Lembretes vencidos e próximos de todos os veículos, os vencidos primeiro; o estado vai sempre por escrito. */
 function Attention() {
   const due = useDueReminders()
 
@@ -174,7 +256,7 @@ function Attention() {
 
   if (items.length === 0) {
     return (
-      <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-900 ring-1 ring-inset ring-emerald-200" role="status">
+      <p className="rounded-control bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok-line ring-inset" role="status">
         Tudo em dia: nenhum lembrete vencido ou próximo.
       </p>
     )
@@ -182,10 +264,15 @@ function Attention() {
 
   return (
     <Card aria-labelledby="attention-title">
-      <h2 id="attention-title" className="text-lg font-semibold">
-        Atenção
-      </h2>
-      <ul className="mt-2 divide-y divide-slate-100">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="attention-title" className="text-lg font-bold">
+          Pede atenção
+        </h2>
+        <Link to="/reminders" className="text-sm font-semibold underline-offset-2 hover:text-amber-ink hover:underline">
+          Ver lembretes
+        </Link>
+      </div>
+      <ul className="mt-3 flex flex-col gap-2">
         {items.map((item) => {
           const look = appearance[item.status.state]
 
@@ -194,16 +281,42 @@ function Attention() {
               <Link
                 to={`/vehicles/${item.vehicleId}`}
                 data-state={item.status.state}
-                className="-mx-2 flex min-h-14 items-center gap-3 rounded-lg px-2 py-3 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-amber-500"
+                className={`flex min-h-14 items-center gap-3.5 rounded-xl border px-3.5 py-2.5 focus-visible:outline-2 focus-visible:outline-ink ${look.row}`}
               >
-                <span aria-hidden="true" className={`w-1.5 self-stretch rounded-full ${look.bar}`} />
+                <span className={`inline-flex size-9 flex-none items-center justify-center rounded-control bg-surface ${look.icon}`}>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="size-[18px]"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    {item.status.state === 'overdue' ? (
+                      <>
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v6" />
+                        <path d="M12 16.5h.01" />
+                      </>
+                    ) : (
+                      <>
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
+                      </>
+                    )}
+                  </svg>
+                </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{item.title}</span>
-                  <span className="block text-sm text-slate-600">
-                    {item.vehicleName} · {statusText(item.status)}
+                  <span className="block truncate font-semibold">{item.title}</span>
+                  <span className="block text-[13px] text-ink-2">
+                    {item.vehicleName} · {statusSummary(item.status)}
                   </span>
                 </span>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${look.badge}`}>{look.label}</span>
+                <Badge tone={item.status.state} className="shrink-0 bg-surface">
+                  {look.label}
+                </Badge>
               </Link>
             </li>
           )

@@ -108,15 +108,15 @@ function CatalogList<T>({
         onChange={(event) => setSearch(event.target.value)}
       />
       {found.length === 0 ? (
-        <p className="py-4 text-center text-slate-600">{emptyText}</p>
+        <p className="py-4 text-center text-ink-2">{emptyText}</p>
       ) : (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-lg ring-1 ring-slate-200">
+        <ul className="divide-y divide-track overflow-hidden rounded-lg ring-1 ring-line">
           {shown.map((item) => (
             <li key={getKey(item)}>
               <button
                 type="button"
                 onClick={() => onSelect(item)}
-                className="block min-h-12 w-full bg-white px-4 py-3 text-left text-base hover:bg-amber-50 focus-visible:bg-amber-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-amber-500"
+                className="block min-h-12 w-full bg-white px-4 py-3 text-left text-base hover:bg-amber-soft focus-visible:bg-amber-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-amber-ink"
               >
                 {getLabel(item)}
               </button>
@@ -125,7 +125,7 @@ function CatalogList<T>({
         </ul>
       )}
       {found.length > shown.length && (
-        <p className="text-center text-sm text-slate-500">
+        <p className="text-center text-sm text-muted">
           Mostrando {shown.length} de {found.length}. Digite na busca para achar o seu.
         </p>
       )}
@@ -135,7 +135,7 @@ function CatalogList<T>({
 
 function Loading({ children }: { children: string }) {
   return (
-    <p className="flex items-center gap-2 py-6 text-slate-600">
+    <p className="flex items-center gap-2 py-6 text-ink-2">
       <Spinner size="sm" label={null} /> {children}
     </p>
   )
@@ -251,7 +251,7 @@ export function FipePicker({ onPick, onManual }: Props) {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-sm text-slate-500">Passo {step + 1} de 4</p>
+        <p className="text-sm text-muted">Passo {step + 1} de 4</p>
         <h2 className="text-lg font-semibold">{titles[step]}</h2>
       </div>
 
@@ -263,9 +263,9 @@ export function FipePicker({ onPick, onManual }: Props) {
                 <button
                   type="button"
                   onClick={() => goBackTo(item.goBack)}
-                  className="min-h-11 rounded-full bg-slate-100 px-3 text-left text-sm text-slate-700 hover:bg-slate-200"
+                  className="min-h-11 rounded-full bg-track px-3 text-left text-sm text-ink-2 hover:bg-line"
                 >
-                  {item.label} <span className="text-slate-500 underline">alterar</span>
+                  {item.label} <span className="text-muted underline">alterar</span>
                 </button>
               </li>
             ))}

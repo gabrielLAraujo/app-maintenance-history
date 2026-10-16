@@ -1,6 +1,7 @@
 using Garage.Application.Vehicles;
 using Garage.Application.Vehicles.CorrectOdometer;
 using Garage.Application.Vehicles.CreateVehicle;
+using Garage.Application.Vehicles.SetCoverPhoto;
 using Garage.Application.Vehicles.UpdateOdometer;
 using Garage.Application.Vehicles.UpdateVehicle;
 using Garage.Domain.Vehicles;
@@ -63,4 +64,10 @@ public sealed record UpdateOdometerRequest(int Km)
 public sealed record CorrectOdometerRequest(int Km)
 {
     internal CorrectOdometerCommand ToCommand(Guid vehicleId) => new(vehicleId, Km);
+}
+
+/// <summary>Corpo de <c>PUT /vehicles/{id}/cover-photo</c>: o id de uma foto do veículo, ou <c>null</c> para remover a capa.</summary>
+public sealed record SetCoverPhotoRequest(Guid? AttachmentId)
+{
+    internal SetCoverPhotoCommand ToCommand(Guid vehicleId) => new(vehicleId, AttachmentId);
 }

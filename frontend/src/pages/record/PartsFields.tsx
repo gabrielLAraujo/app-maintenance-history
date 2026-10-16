@@ -23,7 +23,7 @@ export function PartsFields() {
   return (
     <Card>
       <h2 className="text-base font-semibold">Peças</h2>
-      <p className="mt-1 text-sm text-slate-600">Opcional. Com os preços, o registro soma o custo.</p>
+      <p className="mt-1 text-sm text-ink-2">Opcional. Com os preços, o registro soma o custo.</p>
 
       {fields.length > 0 && (
         <ol className="mt-4 space-y-4">
@@ -32,8 +32,8 @@ export function PartsFields() {
 
             return (
               <li key={field.id}>
-                <fieldset className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
-                  <legend className="px-1 text-sm font-semibold text-slate-700">Peça {index + 1}</legend>
+                <fieldset className="rounded-lg border border-line bg-ground/60 p-3">
+                  <legend className="px-1 text-sm font-semibold text-ink-2">Peça {index + 1}</legend>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
                       <Field
@@ -85,8 +85,8 @@ export function PartsFields() {
                       Remover
                     </Button>
                     {parts?.[index] && lineTotal(parts[index]) > 0 && (
-                      <p className="text-sm text-slate-600">
-                        Subtotal <Money value={lineTotal(parts[index])} className="font-semibold text-slate-900" />
+                      <p className="text-sm text-ink-2">
+                        Subtotal <Money value={lineTotal(parts[index])} className="font-semibold text-ink" />
                       </p>
                     )}
                   </div>
@@ -106,7 +106,7 @@ export function PartsFields() {
         Adicionar peça
       </Button>
       {errors.parts?.message && (
-        <p role="alert" className="mt-2 text-sm text-red-700">
+        <p role="alert" className="mt-2 text-sm text-danger">
           {errors.parts.message}
         </p>
       )}

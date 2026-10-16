@@ -1,3 +1,4 @@
+using Garage.Domain.Attachments;
 using Garage.Domain.Common;
 
 namespace Garage.Domain.Vehicles;
@@ -39,6 +40,9 @@ public sealed class Vehicle : AggregateRoot
     public Odometer CurrentOdometer { get; private set; }
 
     public DateTimeOffset OdometerUpdatedAt { get; private set; }
+
+    /// <summary>Foto de capa: um anexo do tipo Foto deste veículo (C1), ou nulo.</summary>
+    public Guid? CoverPhotoId { get; private set; }
 
     public string DisplayName => Nickname ?? $"{Make} {Model} {Year.Model}";
 
@@ -87,6 +91,20 @@ public sealed class Vehicle : AggregateRoot
         SetOdometer(km, now);
         return Result.Success();
     }
+
+    /// <summary>C1: a capa precisa ser um anexo do tipo Foto do próprio veículo.</summary>
+    public Result SetCoverPhoto(Attachment photo)
+    {
+        ArgumentNullException.ThrowIfNull(photo);
+
+        if (photo.VehicleId != Id || photo.Kind != AttachmentKind.Photo)
+            return VehicleErrors.CoverMustBeVehiclePhoto;
+
+        CoverPhotoId = photo.Id;
+        return Result.Success();
+    }
+
+    public void ClearCoverPhoto() => CoverPhotoId = null;
 
     private void SetOdometer(Odometer km, DateTimeOffset now)
     {

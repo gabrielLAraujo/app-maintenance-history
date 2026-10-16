@@ -48,6 +48,7 @@ public static class ResultHttpExtensions
     {
         ErrorType.Validation => StatusCodes.Status400BadRequest,
         ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+        ErrorType.Forbidden => StatusCodes.Status403Forbidden,
         ErrorType.NotFound => StatusCodes.Status404NotFound,
         ErrorType.Conflict => StatusCodes.Status409Conflict,
         ErrorType.PayloadTooLarge => StatusCodes.Status413PayloadTooLarge,

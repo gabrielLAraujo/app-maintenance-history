@@ -18,4 +18,13 @@ internal sealed class CurrentUser(IHttpContextAccessor httpContextAccessor) : IC
                 : throw new InvalidOperationException("Não há usuário autenticado nesta requisição.");
         }
     }
+
+    public bool IsDemo
+    {
+        get
+        {
+            var user = httpContextAccessor.HttpContext?.User;
+            return user?.Identity?.IsAuthenticated == true && user.HasClaim(GarageClaims.Demo, "true");
+        }
+    }
 }

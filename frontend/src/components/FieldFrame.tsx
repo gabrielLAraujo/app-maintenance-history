@@ -25,7 +25,7 @@ export function FieldFrame({ label, error, hint, children }: Props) {
 
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block text-sm font-medium text-slate-700">
+      <label htmlFor={id} className="block text-sm font-semibold text-ink">
         {label}
       </label>
       {children({
@@ -33,17 +33,17 @@ export function FieldFrame({ label, error, hint, children }: Props) {
         'aria-invalid': error ? true : undefined,
         'aria-describedby': describedBy,
         // 16px (text-base) evita o zoom automático do iOS ao focar o campo.
-        className: `block w-full rounded-lg border bg-white px-3 text-base text-slate-900 placeholder:text-slate-400 focus:outline-2 focus:outline-offset-0 disabled:bg-slate-100 disabled:text-slate-500 ${
-          error ? 'border-red-500 focus:outline-red-600' : 'border-slate-300 focus:outline-amber-500'
+        className: `block w-full rounded-control border bg-surface px-3 text-base text-ink placeholder:text-muted focus:outline-3 focus:outline-offset-0 disabled:bg-ground disabled:text-muted ${
+          error ? 'border-danger focus:outline-danger-line' : 'border-line-strong focus:outline-focus'
         }`,
       })}
       {hint && (
-        <p id={hintId} className="text-sm text-slate-500">
+        <p id={hintId} className="text-[13px] text-muted">
           {hint}
         </p>
       )}
       {error && (
-        <p id={errorId} role="alert" className="text-sm text-red-700">
+        <p id={errorId} role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}

@@ -35,6 +35,7 @@ internal sealed class GetVehicleHandler(
                 v.CurrentOdometer.Km,
                 v.OdometerUpdatedAt,
                 v.Catalog == null ? null : new CatalogRefInput(v.Catalog.Type, v.Catalog.FipeCode, v.Catalog.FipeYearCode),
+                v.CoverPhotoId,
                 EF.Property<uint>(v, "RowVersion")))
             .FirstOrDefaultAsync(ct);
 

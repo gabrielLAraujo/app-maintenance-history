@@ -1,3 +1,4 @@
+using Garage.Domain.Attachments;
 using Garage.Domain.Common;
 using Garage.Domain.Vehicles;
 using Garage.Infrastructure.Identity;
@@ -55,5 +56,8 @@ internal sealed class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
 
         builder.HasIndex(v => v.OwnerId);
         builder.HasOne<AppUser>().WithMany().HasForeignKey(v => v.OwnerId).OnDelete(DeleteBehavior.Cascade);
+
+        // C1: a capa é um anexo do próprio veículo; apagar o anexo limpa a capa.
+        builder.HasOne<Attachment>().WithMany().HasForeignKey(v => v.CoverPhotoId).OnDelete(DeleteBehavior.SetNull);
     }
 }

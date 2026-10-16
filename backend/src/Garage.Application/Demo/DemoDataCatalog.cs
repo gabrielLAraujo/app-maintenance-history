@@ -7,8 +7,8 @@ using Garage.Domain.Vehicles;
 namespace Garage.Application.Demo;
 
 /// <summary>
-/// Os dados de exemplo: um Civic EK com histórico completo (inclusive uma modificação), lembretes em todos os estados e um
-/// link público, e um Gol com o mínimo. Tudo é relativo a "hoje" (<c>IAppClock.Today</c>), para as datas nunca ficarem
+/// Os dados de exemplo: um Civic EK com capa, histórico completo (inclusive uma modificação), lembretes em todos os estados
+/// e um link público, e um Gol com o mínimo. Tudo é relativo a "hoje" (<c>IAppClock.Today</c>), para as datas nunca ficarem
 /// no futuro nem os prazos dos lembretes mudarem de estado com o tempo, e é montado com os tipos do domínio, que impõem
 /// as próprias regras na criação. Os registros levam fotos reais do Wikimedia Commons (e, no Coilover, uma nota de
 /// exemplo em PDF); o autor e a licença de cada foto vão na descrição do registro, que a página pública mostra.
@@ -66,7 +66,7 @@ internal static class DemoDataCatalog
             NewRecord(today, RecordType.Maintenance, daysAgo: 10, km: 151_800, "Repintura do para-choque dianteiro", Category.BodyPaint,
                 description: "Retoque de arranhões e repintura na cor original.",
                 performedBy: "Funilaria Bom Acabamento", laborCost: 850.00m,
-                attachments: [Photo("civic-lx-frente.jpg", "para-choque.jpg", "Elise240SX (CC BY-SA 4.0)")])
+                attachments: [Photo("civic-lx-frente.jpg", "para-choque.jpg", "Elise240SX (CC BY-SA 4.0)", isCover: true)])
         ],
         Reminders:
         [
@@ -157,8 +157,9 @@ internal static class DemoDataCatalog
         string name, decimal quantity, decimal unitPrice, PartUnit unit = PartUnit.Unit, string? brand = null) =>
         new(name, brand, PartNumber: null, quantity, unit, new Money(unitPrice));
 
-    private static DemoAttachment Photo(string asset, string fileName, string credit, bool isPublic = true) =>
-        new(asset, AttachmentKind.Photo, fileName, isPublic, credit);
+    private static DemoAttachment Photo(
+        string asset, string fileName, string credit, bool isPublic = true, bool isCover = false) =>
+        new(asset, AttachmentKind.Photo, fileName, isPublic, credit, isCover);
 
     // Documento nunca é público (A4); o PDF é fictício e não precisa de crédito.
     private static DemoAttachment SampleInvoice(string asset, string fileName) =>
@@ -176,9 +177,11 @@ internal sealed record DemoRecord(RecordDetails Details, IReadOnlyList<DemoAttac
 
 /// <summary>
 /// Um arquivo do registro: o nome do asset embutido (<see cref="Garage.Application.Abstractions.Ports.IDemoAssets"/>),
-/// como aparece na lista de anexos, se vai para o link público (só foto) e, nas fotos, o autor e a licença do crédito.
+/// como aparece na lista de anexos, se vai para o link público (só foto), nas fotos, o autor e a licença do crédito, e se
+/// é a capa do veículo.
 /// </summary>
-internal sealed record DemoAttachment(string Asset, AttachmentKind Kind, string FileName, bool IsPublic, string? Credit);
+internal sealed record DemoAttachment(
+    string Asset, AttachmentKind Kind, string FileName, bool IsPublic, string? Credit, bool IsCover = false);
 
 internal sealed record DemoReminder(string Title, ReminderInterval Interval, DateOnly LastDoneDate, Odometer? LastDoneOdometer);
 

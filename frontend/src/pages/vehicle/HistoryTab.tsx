@@ -47,7 +47,7 @@ export function HistoryTab({ vehicleId }: { vehicleId: string }) {
 
   if (records.isPending) {
     return (
-      <p className="flex items-center gap-2 py-8 text-slate-600">
+      <p className="flex items-center gap-2 py-8 text-muted">
         <Spinner size="sm" label={null} /> Carregando histórico…
       </p>
     )
@@ -66,11 +66,8 @@ export function HistoryTab({ vehicleId }: { vehicleId: string }) {
 
   return (
     <div className="space-y-4">
-      <ButtonLink to={newRecordPath} className="w-full sm:w-auto">
-        Novo registro
-      </ButtonLink>
-
-      <div className="grid grid-cols-2 gap-3">
+      {/* "Novo registro" fica no cabeçalho do veículo, sempre à vista. */}
+      <div className="grid grid-cols-2 gap-3 sm:max-w-md">
         <SelectField label="Tipo" value={type ?? ''} onChange={(event) => setFilters({ type: event.target.value, category: category ?? null })}>
           <option value="">Todos</option>
           {recordTypes.map((value) => (
@@ -106,7 +103,7 @@ export function HistoryTab({ vehicleId }: { vehicleId: string }) {
 
       {items.length > 0 && (
         // Troca de filtro: a lista anterior fica (apagada) até a nova chegar, em vez de sumir e pular a tela.
-        <ul className={`space-y-3 transition-opacity ${records.isPlaceholderData ? 'opacity-50' : ''}`} aria-busy={records.isPlaceholderData}>
+        <ul className={`transition-opacity ${records.isPlaceholderData ? 'opacity-50' : ''}`} aria-busy={records.isPlaceholderData}>
           {items.map((item) => (
             <RecordRow key={item.id} vehicleId={vehicleId} item={item} />
           ))}
@@ -114,8 +111,8 @@ export function HistoryTab({ vehicleId }: { vehicleId: string }) {
       )}
 
       {items.length === 0 && !records.error && (
-        <div className="rounded-xl border-2 border-dashed border-slate-300 bg-white px-4 py-8 text-center">
-          <p className="font-medium">Nenhum registro com esses filtros.</p>
+        <div className="rounded-card border-2 border-dashed border-line-strong bg-surface px-4 py-8 text-center">
+          <p className="font-semibold">Nenhum registro com esses filtros.</p>
           <Button variant="secondary" className="mt-4" onClick={() => setFilters({ type: null, category: null })}>
             Limpar filtros
           </Button>
@@ -144,35 +141,35 @@ function ClipIcon() {
   )
 }
 
+/** Um registro na linha do tempo: data e km em mono à esquerda, o marco âmbar e o cartão do serviço. */
 function RecordRow({ vehicleId, item }: { vehicleId: string; item: Schemas['RecordListItemDto'] }) {
   const odometer = toNumber(item.odometer)
   const total = toNumber(item.totalCost) ?? 0
   const attachments = toNumber(item.attachmentCount) ?? 0
 
   return (
-    <li>
+    <li className="flex gap-3 sm:gap-4">
+      <div className="w-[84px] flex-none pt-4 text-right sm:w-24">
+        <p className="font-mono text-xs font-semibold text-ink">{formatDate(item.date)}</p>
+        {odometer !== null && <Km value={odometer} className="block text-xs text-muted" />}
+      </div>
+      <div aria-hidden="true" className="flex w-3.5 flex-none flex-col items-center">
+        <span className="mt-[18px] size-3 rounded-full border-2 border-ink bg-amber" />
+        <span className="w-0.5 flex-1 bg-line" />
+      </div>
       <Link
         to={`/vehicles/${vehicleId}/records/${item.id}`}
-        className="block rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:shadow-md hover:ring-slate-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
+        className="mb-3.5 block min-w-0 flex-1 rounded-[14px] border border-line bg-surface p-4 transition hover:border-line-strong hover:shadow-[0_8px_24px_rgba(20,22,27,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <div className="flex items-start justify-between gap-3">
-          <h3 className="min-w-0 font-semibold leading-snug break-words">{item.title}</h3>
+          <h3 className="min-w-0 leading-snug font-bold break-words">{item.title}</h3>
           {total > 0 && <Money value={total} className="shrink-0 font-semibold" />}
         </div>
-        <p className="mt-1 text-sm text-slate-600">
-          {formatDate(item.date)}
-          {odometer !== null && (
-            <>
-              {' · '}
-              <Km value={odometer} />
-            </>
-          )}
-        </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <TypeBadge type={item.type} />
           <CategoryBadge category={item.category} />
           {attachments > 0 && (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-muted">
               <ClipIcon />
               <span aria-hidden="true">{attachments}</span>
               <span className="sr-only">{attachments === 1 ? '1 anexo' : `${attachments} anexos`}</span>

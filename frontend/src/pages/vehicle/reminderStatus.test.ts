@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { intervalSummary, isOdometerStale, statusLines } from './reminderStatus'
+import { intervalSummary, isOdometerStale, statusLines, statusSummary } from './reminderStatus'
 
 const status = (kmRemaining: number | null, daysRemaining: number | null) => ({
   state: 'ok' as const,
@@ -65,5 +65,14 @@ describe('isOdometerStale', () => {
 
   it('data inválida não avisa', () => {
     expect(isOdometerStale('ontem', now)).toBe(false)
+  })
+})
+
+describe('statusSummary', () => {
+  it('uma linha curta, em minúsculas, com os dois eixos', () => {
+    expect(statusSummary(status(800, 12))).toBe('faltam 800 km · faltam 12 dias')
+    expect(statusSummary(status(-300, null))).toBe('300 km atrasado')
+    expect(statusSummary(status(null, -1))).toBe('1 dia atrasado')
+    expect(statusSummary(status(0, 0))).toBe('vence agora · vence hoje')
   })
 })

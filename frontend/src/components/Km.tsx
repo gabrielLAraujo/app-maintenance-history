@@ -8,5 +8,5 @@ type Props = {
 
 /** Quilometragem em pt-BR ("150.000 km"), com algarismos de largura fixa para alinhar em listas. */
 export function Km({ value, className = '' }: Props) {
-  return <span className={`tabular-nums ${className}`}>{formatKm(toNumber(value))}</span>
+  return <span className={`font-mono tabular-nums ${className}`}>{formatKm(toNumber(value))}</span>
 }

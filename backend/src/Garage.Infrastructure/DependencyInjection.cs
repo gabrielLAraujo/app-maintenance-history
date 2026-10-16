@@ -45,6 +45,19 @@ public static class DependencyInjection
         services.AddSingleton<IImageProcessor, MagickImageProcessor>();
         services.AddSingleton<IDemoAssets, EmbeddedDemoAssets>();
 
+        services.AddOptions<DemoVisitorOptions>()
+            .Bind(config.GetSection(DemoVisitorOptions.SectionName))
+            .Validate(options => options.TtlHours > 0 && options.MaxVehicles > 0
+                                 && options.MaxActive >= 0 && options.CleanupIntervalMinutes >= 0,
+                "Demo:Visitors inválido: TtlHours e MaxVehicles precisam ser positivos; MaxActive (0 fecha a demo) e "
+                + "CleanupIntervalMinutes (0 desliga a limpeza automática), zero ou positivos.")
+            .ValidateOnStart();
+        services.AddScoped<DemoAccountService>();
+        // Sempre registrado: confere Enabled e o intervalo ao subir, lendo as opções (e não a configuração no registro), então
+        // valem também as configurações aplicadas depois, como as dos testes.
+        services.AddHostedService<DemoCleanupService>();
+        services.AddSingleton<IDemoLimits, DemoLimits>();
+
         services.AddGarageDataProtection(config);
 
         services.AddHttpContextAccessor();

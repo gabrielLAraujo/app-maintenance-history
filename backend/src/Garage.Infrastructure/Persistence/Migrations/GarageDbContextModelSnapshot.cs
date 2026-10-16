@@ -267,6 +267,10 @@ namespace Garage.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("CoverPhotoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cover_photo_id");
+
                     b.Property<int>("CurrentOdometer")
                         .HasColumnType("integer")
                         .HasColumnName("current_odometer");
@@ -355,6 +359,9 @@ namespace Garage.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_vehicles");
 
+                    b.HasIndex("CoverPhotoId")
+                        .HasDatabaseName("ix_vehicles_cover_photo_id");
+
                     b.HasIndex("OwnerId")
                         .HasDatabaseName("ix_vehicles_owner_id");
 
@@ -398,6 +405,10 @@ namespace Garage.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("concurrency_stamp");
 
+                    b.Property<DateTimeOffset?>("DemoExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("demo_expires_at");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
@@ -406,6 +417,10 @@ namespace Garage.Infrastructure.Persistence.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean")
                         .HasColumnName("email_confirmed");
+
+                    b.Property<bool>("IsDemo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_demo");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean")
@@ -452,6 +467,10 @@ namespace Garage.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_asp_net_users");
+
+                    b.HasIndex("DemoExpiresAt")
+                        .HasDatabaseName("ix_asp_net_users_demo_expires_at")
+                        .HasFilter("is_demo");
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("ix_asp_net_users_normalized_email");
@@ -733,6 +752,12 @@ namespace Garage.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Garage.Domain.Vehicles.Vehicle", b =>
                 {
+                    b.HasOne("Garage.Domain.Attachments.Attachment", null)
+                        .WithMany()
+                        .HasForeignKey("CoverPhotoId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_vehicles_attachments_cover_photo_id");
+
                     b.HasOne("Garage.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("OwnerId")

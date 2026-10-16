@@ -31,7 +31,7 @@ export function RecordDetail() {
 
   if (record.isPending) {
     return (
-      <p className="flex items-center gap-2 py-8 text-slate-600">
+      <p className="flex items-center gap-2 py-8 text-ink-2">
         <Spinner size="sm" label={null} /> Carregando registro…
       </p>
     )
@@ -59,14 +59,19 @@ export function RecordDetail() {
           <TypeBadge type={current.type} />
           <CategoryBadge category={current.category} />
         </div>
-        <p className="mt-2 text-slate-600">
+        <p className="mt-2 text-ink-2">
           {formatDate(current.date)} · {odometer === null ? 'sem km informada' : <Km value={odometer} />}
         </p>
       </PageHeader>
 
       <Details record={current} />
       <Costs record={current} />
-      <Attachments vehicleId={id} recordId={recordId} attachments={current.attachments} />
+      <Attachments
+        vehicleId={id}
+        recordId={recordId}
+        attachments={current.attachments}
+        coverPhotoId={vehicle.data?.coverPhotoId ?? null}
+      />
       <DeleteRecord vehicleId={id} recordId={recordId} record={current} />
     </div>
   )
@@ -77,17 +82,17 @@ function Details({ record }: { record: Schemas['RecordDto'] }) {
 
   return (
     <Card className="space-y-4">
-      {record.description && <p className="whitespace-pre-line break-words text-slate-800">{record.description}</p>}
+      {record.description && <p className="whitespace-pre-line break-words text-ink">{record.description}</p>}
       <dl className="grid gap-4 sm:grid-cols-2">
         {record.performedBy && (
           <div>
-            <dt className="text-sm text-slate-500">Quem fez</dt>
+            <dt className="text-sm text-muted">Quem fez</dt>
             <dd className="font-medium break-words">{record.performedBy}</dd>
           </div>
         )}
         {record.replacedOriginalPart && (
           <div className="sm:col-span-2">
-            <dt className="text-sm text-slate-500">Peça original substituída</dt>
+            <dt className="text-sm text-muted">Peça original substituída</dt>
             <dd className="font-medium break-words">{record.replacedOriginalPart}</dd>
           </div>
         )}
@@ -107,7 +112,7 @@ function Costs({ record }: { record: Schemas['RecordDto'] }) {
       </h2>
 
       {record.parts.length > 0 && (
-        <ul className="mt-1 divide-y divide-slate-100">
+        <ul className="mt-1 divide-y divide-track">
           {record.parts.map((part, index) => {
             const unitPrice = toNumber(part.unitPrice)
             const quantity = `${formatQuantity(toNumber(part.quantity) ?? 0)} ${partUnitLabels[part.unit]}`
@@ -117,8 +122,8 @@ function Costs({ record }: { record: Schemas['RecordDto'] }) {
               <li key={index} className="flex items-start justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className="font-medium break-words">{part.name}</p>
-                  {identity && <p className="text-sm text-slate-600 break-words">{identity}</p>}
-                  <p className="text-sm text-slate-600 tabular-nums">
+                  {identity && <p className="text-sm text-ink-2 break-words">{identity}</p>}
+                  <p className="text-sm text-ink-2 tabular-nums">
                     {unitPrice === null ? quantity : `${quantity} × ${formatMoney(unitPrice)}`}
                   </p>
                 </div>
@@ -129,10 +134,10 @@ function Costs({ record }: { record: Schemas['RecordDto'] }) {
         </ul>
       )}
 
-      <dl className="mt-1 space-y-2 border-t border-slate-200 pt-3">
+      <dl className="mt-1 space-y-2 border-t border-line pt-3">
         {labor !== null && (
           <div className="flex items-center justify-between gap-3">
-            <dt className="text-slate-600">Mão de obra</dt>
+            <dt className="text-ink-2">Mão de obra</dt>
             <dd>
               <Money value={labor} className="font-semibold" />
             </dd>
@@ -167,7 +172,7 @@ function DeleteRecord({ vehicleId, recordId, record }: { vehicleId: string; reco
   return (
     <Card>
       <h2 className="text-base font-semibold">Excluir registro</h2>
-      <p className="mt-1 text-sm text-slate-600">
+      <p className="mt-1 text-sm text-ink-2">
         Apaga o registro, as peças e os anexos. A km do veículo e os lembretes não voltam atrás. Não dá para desfazer.
       </p>
       <Button variant="danger" className="mt-4" onClick={() => setConfirming(true)}>
@@ -177,7 +182,7 @@ function DeleteRecord({ vehicleId, recordId, record }: { vehicleId: string; reco
       {confirming && (
         <Modal title="Excluir este registro?" onClose={() => setConfirming(false)}>
           <div className="mt-3 space-y-4">
-            <p className="break-words text-slate-700">
+            <p className="break-words text-ink-2">
               <strong>{record.title}</strong> será apagado de vez
               {files > 0 && `, com ${files === 1 ? 'o anexo' : `os ${files} anexos`}`}.
             </p>

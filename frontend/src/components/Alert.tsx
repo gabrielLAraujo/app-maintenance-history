@@ -3,10 +3,10 @@ import type { ComponentProps } from 'react'
 type Variant = 'error' | 'warning' | 'info' | 'success'
 
 const variants: Record<Variant, string> = {
-  error: 'bg-red-50 text-red-900 ring-red-200',
-  warning: 'bg-amber-50 text-amber-900 ring-amber-200',
-  info: 'bg-sky-50 text-sky-900 ring-sky-200',
-  success: 'bg-emerald-50 text-emerald-900 ring-emerald-200',
+  error: 'bg-danger-soft text-danger ring-danger-line',
+  warning: 'bg-amber-soft text-amber-ink ring-amber-line',
+  info: 'bg-plate-soft text-plate ring-plate-line',
+  success: 'bg-ok-soft text-ok ring-ok-line',
 }
 
 type Props = ComponentProps<'div'> & { variant?: Variant }
@@ -16,7 +16,7 @@ export function Alert({ variant = 'info', className = '', ...rest }: Props) {
   return (
     <div
       role={variant === 'error' || variant === 'warning' ? 'alert' : 'status'}
-      className={`rounded-lg p-3 text-sm ring-1 ring-inset ${variants[variant]} ${className}`}
+      className={`rounded-control p-3 text-sm ring-1 ring-inset ${variants[variant]} ${className}`}
       {...rest}
     />
   )

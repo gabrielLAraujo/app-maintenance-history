@@ -21,6 +21,7 @@ const view = (extra: Record<string, unknown> = {}) => ({
   plate: null,
   currentOdometer: 215000,
   includesCosts: false,
+  coverPhoto: null as { id: string; path: string } | null,
   records: [] as unknown[],
   nextCursor: null as string | null,
   ...extra,
@@ -50,6 +51,8 @@ function fakePublic(handler: Handler) {
 }
 
 const open = () => renderApp(`/p/${token}`)
+/** A seção do histórico (os destaques repetem alguns títulos fora dela). */
+const historySection = () => screen.findByRole('region', { name: 'Histórico de serviços' })
 const queryOf = (call: Call) => new URL(call.path, 'http://localhost').searchParams
 
 beforeEach(() => {
@@ -82,14 +85,14 @@ describe('página pública: o que mostra', () => {
     expect(document.body.textContent).not.toMatch(/R\$/)
     expect(screen.queryByText(/Mão de obra/)).not.toBeInTheDocument()
     expect(screen.queryByText('Total')).not.toBeInTheDocument()
-    expect(document.querySelector('.font-mono')).toBeNull()
+    expect(screen.queryByText(/^Placa /)).not.toBeInTheDocument()
   })
 
   it('a placa aparece só quando a API a devolve', async () => {
     fakePublic(() => json(view({ plate: 'ABC1D23' })))
     open()
 
-    expect(await screen.findByText('ABC1D23')).toBeInTheDocument()
+    expect(await screen.findByText('Placa ABC1D23')).toBeInTheDocument()
   })
 
   it('com custos: preço das peças, mão de obra e total, exatamente como a API manda', async () => {
@@ -205,14 +208,15 @@ describe('página pública: paginação', () => {
     open()
     const typist = userEvent.setup()
 
-    expect(await screen.findByText('Troca de óleo e filtro')).toBeInTheDocument()
+    const history = await historySection()
+    expect(await within(history).findByText('Troca de óleo e filtro')).toBeInTheDocument()
     expect(screen.queryByText('Coilover Tein Street')).not.toBeInTheDocument()
     expect(queryOf(calls[0]).has('cursor')).toBe(false)
 
     await typist.click(screen.getByRole('button', { name: 'Carregar mais' }))
 
-    expect(await screen.findByText('Coilover Tein Street')).toBeInTheDocument()
-    expect(screen.getByText('Troca de óleo e filtro')).toBeInTheDocument() // a primeira página continua
+    expect(await within(history).findByText('Coilover Tein Street')).toBeInTheDocument()
+    expect(within(history).getByText('Troca de óleo e filtro')).toBeInTheDocument() // a primeira página continua
     expect(queryOf(calls.at(-1)!).get('cursor')).toBe('pagina-2')
     expect(screen.queryByRole('button', { name: 'Carregar mais' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('article')).toHaveLength(2)
@@ -230,7 +234,7 @@ describe('página pública: paginação', () => {
     await typist.click(await screen.findByRole('button', { name: 'Carregar mais' }))
 
     expect(await screen.findByText('Não foi possível carregar mais agora.')).toBeInTheDocument()
-    expect(screen.getByText('Troca de óleo e filtro')).toBeInTheDocument()
+    expect(within(await historySection()).getByText('Troca de óleo e filtro')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Carregar mais' })).toBeInTheDocument()
   })
 })
@@ -319,5 +323,67 @@ describe('página pública: anônima', () => {
 
     expect(screen.queryByRole('button', { name: 'Sair' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+})
+
+describe('página pública: dossiê', () => {
+  const sample = [
+    record({ title: 'Repintura do para-choque dianteiro', date: '2026-10-02', odometer: 151800, category: 'bodyPaint', parts: [] }),
+    record({ title: 'Troca de óleo e filtro', date: '2026-06-04', odometer: 147800 }),
+    record({ type: 'modification', title: 'Coilover', date: '2025-12-16', odometer: 142200, category: 'suspension', parts: [] }),
+    record({ title: 'Alinhamento e balanceamento', date: '2025-08-08', odometer: 137900, category: 'wheelsTires', parts: [] }),
+    record({ title: 'Pastilhas de freio dianteiras', date: '2025-03-31', odometer: 133600, category: 'brakes', parts: [] }),
+  ]
+
+  it('com capa, a foto do veículo abre a página; sem capa, nenhuma foto no topo', async () => {
+    const cover = { id: '0198a1c2-0000-7000-8000-00000000e009', path: `${publicPath}/attachments/0198a1c2-0000-7000-8000-00000000e009` }
+    fakePublic(() => json(view({ coverPhoto: cover })))
+    open()
+
+    expect(await screen.findByRole('img', { name: 'Civic EK' })).toHaveAttribute('src', cover.path)
+
+    cleanup()
+    fakePublic(() => json(view()))
+    open()
+    await screen.findByRole('heading', { level: 1, name: 'Civic EK' })
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it('destaques: primeiro as modificações, depois as manutenções mais recentes, no máximo 3', async () => {
+    fakePublic(() => json(view({ records: sample })))
+    open()
+
+    const highlights = (await screen.findByRole('heading', { name: 'Destaques do histórico' })).closest('section')!
+    const items = within(highlights).getAllByRole('listitem')
+    expect(items.map((item) => within(item).getByRole('heading', { level: 3 }).textContent)).toEqual([
+      'Coilover',
+      'Repintura do para-choque dianteiro',
+      'Troca de óleo e filtro',
+    ])
+    expect(items[0]).toHaveTextContent('dez/2025 · 142.200 km')
+  })
+
+  it('diz o que o link não mostra: custos e placa só quando o dono não os liberou', async () => {
+    fakePublic(() => json(view({ records: sample })))
+    open()
+
+    const hidden = (await screen.findByRole('heading', { name: 'O que este link não mostra' })).parentElement!
+    expect(hidden).toHaveTextContent('Custos, placa, chassi, documentos, notas fiscais e lembretes.')
+
+    cleanup()
+    fakePublic(() => json(view({ records: sample, includesCosts: true, plate: 'ABC1D23' })))
+    open()
+
+    const shown = (await screen.findByRole('heading', { name: 'O que este link não mostra' })).parentElement!
+    expect(shown).toHaveTextContent('Chassi, documentos, notas fiscais e lembretes.')
+    expect(shown).not.toHaveTextContent(/custos|placa/i)
+  })
+
+  it('resume o histórico: quantos serviços, desde quando e quantas fotos', async () => {
+    fakePublic(() => json(view({ records: sample })))
+    open()
+
+    expect(await screen.findByText('5 serviços registrados')).toBeInTheDocument()
+    expect(screen.getByText('Histórico desde mar/2025')).toBeInTheDocument()
   })
 })

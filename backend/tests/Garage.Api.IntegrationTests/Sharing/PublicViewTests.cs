@@ -49,7 +49,7 @@ public sealed class PublicViewTests(GarageApiFactory factory)
 
         Assert.Equal(
             Sorted("make", "model", "version", "generation", "manufactureYear", "modelYear", "fuel", "nickname", "plate",
-                "currentOdometer", "includesCosts", "records", "nextCursor"),
+                "currentOdometer", "includesCosts", "coverPhoto", "records", "nextCursor"),
             PropertyNames(view));
         Assert.Equal("Honda", view.GetProperty("make").GetString());
         Assert.Equal("Civic", view.GetProperty("model").GetString());
@@ -62,6 +62,7 @@ public sealed class PublicViewTests(GarageApiFactory factory)
         Assert.Equal("ABC1234", view.GetProperty("plate").GetString());
         Assert.Equal(150_000, view.GetProperty("currentOdometer").GetInt32());
         Assert.True(view.GetProperty("includesCosts").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("coverPhoto").ValueKind);
         Assert.Equal(JsonValueKind.Null, view.GetProperty("nextCursor").ValueKind);
 
         var record = Assert.Single(view.GetProperty("records").EnumerateArray());
@@ -91,6 +92,37 @@ public sealed class PublicViewTests(GarageApiFactory factory)
         Assert.Equal(Sorted("id", "path"), PropertyNames(photo));
         Assert.Equal(seeded.PublicPhoto, Id(photo));
         Assert.Equal(PhotoUrl(token, seeded.PublicPhoto), photo.GetProperty("path").GetString());
+    }
+
+    [Fact]
+    public async Task Public_view_shows_the_cover_only_when_the_photo_is_public()
+    {
+        using var owner = await UserAsync();
+        var seeded = await SeedAsync(owner);
+        using (var set = await owner.PutAsJsonAsync(
+                   $"/api/vehicles/{seeded.VehicleId}/cover-photo", new { attachmentId = seeded.PublicPhoto }, TestJson.Options))
+            Assert.Equal(HttpStatusCode.NoContent, set.StatusCode);
+        var token = Token(await owner.CreateShareLinkAsync(seeded.VehicleId));
+
+        var (shown, _) = await PublicViewAsync(token);
+
+        var cover = shown.GetProperty("coverPhoto");
+        Assert.Equal(Sorted("id", "path"), PropertyNames(cover));
+        Assert.Equal(seeded.PublicPhoto, Id(cover));
+        Assert.EndsWith($"/attachments/{seeded.PublicPhoto}", cover.GetProperty("path").GetString(), StringComparison.Ordinal);
+        Assert.Equal(PhotoUrl(token, seeded.PublicPhoto), cover.GetProperty("path").GetString());
+
+        // A foto deixa de ser pública: o link para de mostrar a capa, mas a capa do dono continua.
+        using (var hide = await owner.PatchAsJsonAsync(
+                   $"/api/vehicles/{seeded.VehicleId}/attachments/{seeded.PublicPhoto}", new { isPublic = false }, TestJson.Options))
+            Assert.Equal(HttpStatusCode.NoContent, hide.StatusCode);
+
+        var (hidden, hiddenRaw) = await PublicViewAsync(token);
+
+        Assert.Equal(JsonValueKind.Null, hidden.GetProperty("coverPhoto").ValueKind);
+        Assert.DoesNotContain(seeded.PublicPhoto.ToString(), hiddenRaw, StringComparison.OrdinalIgnoreCase);
+        var ownerView = await owner.GetVehicleAsync(seeded.VehicleId);
+        Assert.Equal(seeded.PublicPhoto, ownerView.GetProperty("coverPhotoId").GetGuid());
     }
 
     [Fact]

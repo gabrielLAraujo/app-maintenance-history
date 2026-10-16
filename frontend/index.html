@@ -4,9 +4,36 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#14161b" />
     <meta name="referrer" content="no-referrer" />
-    <title>Garagem</title>
+    <!-- A fonte dos títulos (o título da landing é o maior elemento da primeira tela): baixa junto com o JS, sem
+         esperar o CSS e a primeira renderização. O Vite troca o caminho pelo arquivo com hash, o mesmo do CSS. -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="./node_modules/@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2"
+    />
+    <title>Garagem — o histórico do seu carro num só lugar</title>
+    <meta
+      name="description"
+      content="Registre manutenções e modificações com peças, custos, fotos e notas fiscais, receba lembretes por km ou tempo e compartilhe o histórico com quem vai comprar. Veja a demo sem cadastro."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="Garagem" />
+    <meta property="og:title" content="Garagem — o histórico do seu carro num só lugar" />
+    <meta
+      property="og:description"
+      content="Manutenções, modificações, lembretes e um link público para o comprador. Projeto em .NET 10 e React 19, com demo sem cadastro."
+    />
+    <meta property="og:url" content="https://garagem.frauchesgabriel.work/" />
+    <meta property="og:image" content="https://garagem.frauchesgabriel.work/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A página inicial da Garagem: um Civic 1998 com o histórico e os lembretes" />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <div id="root"></div>
