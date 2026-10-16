@@ -84,9 +84,14 @@ export function useDeleteRecord(vehicleId: string) {
       unwrapEmpty(api.DELETE('/api/vehicles/{vehicleId}/records/{recordId}', { params: { path: { vehicleId, recordId } } })),
     onSuccess: (_, recordId) => {
       // O registro deixou de existir: sai do cache em vez de ser buscado de novo e dar 404. Excluir não mexe na km
-      // do veículo (V4) nem nos lembretes (R6): só o histórico precisa buscar de novo.
+      // do veículo (V4) nem nos lembretes (R6): buscam de novo o histórico e os gastos (do veículo, da lista de
+      // veículos e do painel, cuja chave vive sob `vehicleKeys.all`).
       queryClient.removeQueries({ queryKey: recordKeys.one(vehicleId, recordId) })
-      return queryClient.invalidateQueries({ queryKey: recordKeys.lists(vehicleId) })
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: recordKeys.lists(vehicleId) }),
+        queryClient.invalidateQueries({ queryKey: [...vehicleKeys.one(vehicleId), 'summary'] }),
+        queryClient.invalidateQueries({ queryKey: vehicleKeys.all }),
+      ])
     },
   })
 }

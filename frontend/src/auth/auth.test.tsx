@@ -102,7 +102,7 @@ describe('rotas e sessão', () => {
     fakeApi({ signedIn: true })
     renderApp('/')
 
-    expect(await screen.findByRole('heading', { name: 'Seus veículos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sua garagem' })).toBeInTheDocument()
     expect(screen.getByText(account.email)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
   })
@@ -111,7 +111,7 @@ describe('rotas e sessão', () => {
     fakeApi({ signedIn: true })
 
     renderApp('/login')
-    expect(await screen.findByRole('heading', { name: 'Seus veículos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sua garagem' })).toBeInTheDocument()
   })
 
   it('/register com o cadastro fechado volta ao login e esconde o link "Criar conta"', async () => {
@@ -166,7 +166,7 @@ describe('login', () => {
     const typist = await fillCredentials()
     await typist.click(screen.getByRole('button', { name: 'Entrar' }))
 
-    expect(await screen.findByRole('heading', { name: 'Seus veículos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sua garagem' })).toBeInTheDocument()
     expect(screen.getByText(account.email)).toBeInTheDocument()
     const login = calls.find((call) => call.path === '/api/auth/login')
     expect(JSON.parse(login!.body)).toEqual({ email: account.email, password })
@@ -192,7 +192,7 @@ describe('login', () => {
     await typist.click(screen.getByRole('button', { name: 'Entrar' }))
     release()
 
-    expect(await screen.findByRole('heading', { name: 'Seus veículos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sua garagem' })).toBeInTheDocument()
     expect(calls.filter((call) => call.path === '/api/auth/login')).toHaveLength(1)
   })
 
@@ -248,7 +248,7 @@ describe('cadastro', () => {
     const typist = await fillCredentials()
     await typist.click(screen.getByRole('button', { name: 'Criar conta' }))
 
-    expect(await screen.findByRole('heading', { name: 'Seus veículos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sua garagem' })).toBeInTheDocument()
     expect(calls.some((call) => call.method === 'POST' && call.path === '/api/auth/register')).toBe(true)
   })
 
@@ -290,7 +290,7 @@ describe('sair e sessão expirada', () => {
   it('401 no meio do uso encerra a sessão (no início, volta a landing), sem tela em branco e sem laço', async () => {
     const { calls, session } = fakeApi({ signedIn: true })
     renderApp('/')
-    expect(await screen.findByRole('heading', { name: 'Seus veículos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sua garagem' })).toBeInTheDocument()
 
     session.signedIn = false // o cookie venceu (ou o deploy trocou as chaves)
     await act(async () => {
@@ -308,7 +308,7 @@ describe('sair e sessão expirada', () => {
   it('depois de expirar, entrar de novo volta ao painel', async () => {
     const { session } = fakeApi({ signedIn: true })
     renderApp('/')
-    await screen.findByRole('heading', { name: 'Seus veículos' })
+    await screen.findByRole('heading', { name: 'Sua garagem' })
 
     session.signedIn = false
     await act(async () => {
@@ -318,6 +318,6 @@ describe('sair e sessão expirada', () => {
     const typist = await fillCredentials()
     await typist.click(screen.getByRole('button', { name: 'Entrar' }))
 
-    expect(await screen.findByRole('heading', { name: 'Seus veículos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sua garagem' })).toBeInTheDocument()
   })
 })

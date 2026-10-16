@@ -98,7 +98,7 @@ describe('tela do veículo e atualização de km', () => {
     const { queryClient } = renderApp('/')
     const typist = userEvent.setup()
 
-    await typist.click(await screen.findByRole('heading', { level: 2, name: 'Civic EK' }))
+    await typist.click(await screen.findByRole('heading', { level: 3, name: 'Civic EK' }))
     await typist.click(await screen.findByRole('button', { name: 'Atualizar km' }))
 
     await typist.clear(screen.getByLabelText('Km do painel'))
