@@ -11,6 +11,7 @@ internal sealed class SetCoverPhotoEndpoint : IEndpoint
             .WithName("SetVehicleCoverPhoto")
             .WithTags("Vehicles")
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)

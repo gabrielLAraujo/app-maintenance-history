@@ -202,6 +202,33 @@ describe('detalhe do registro', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Civic EK' })).toBeInTheDocument()
     expect(sent(calls, 'DELETE', recordPath)[0].headers.get('X-XSRF-TOKEN')).toBe('test-token')
+    // O registro apagado não é buscado de novo (daria 404): só a carga inicial.
+    await waitFor(() => expect(sent(calls, 'GET', `/api/vehicles/${id}`).length).toBeGreaterThan(1))
+    expect(sent(calls, 'GET', recordPath)).toHaveLength(1)
+  })
+
+  it('excluir o registro que tem a foto de capa não deixa a capa quebrada na página do veículo', async () => {
+    let vehicleCalls = 0
+    const calls = fakeApi({
+      // Primeiro com a capa (foto deste registro); depois da exclusão, a busca nova fica pendente: a tela mostra o cache.
+      [`GET /api/vehicles/${id}`]: () =>
+        ++vehicleCalls === 1 ? json({ ...civicDto, coverPhotoId: photo.id }) : new Promise<Response>(() => {}),
+      [`DELETE ${recordPath}`]: () => noContent(),
+    })
+    renderApp(`/vehicles/${id}/records/${recordId}`)
+    const typist = userEvent.setup()
+
+    await typist.click(await screen.findByRole('button', { name: 'Excluir registro' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Excluir este registro?' })
+    await typist.click(within(dialog).getByRole('button', { name: 'Excluir de vez' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Civic EK' })).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Civic EK' })).not.toBeInTheDocument()
+    expect(screen.getByText('Sem foto de capa')).toBeInTheDocument()
+    // Limpar a capa no cache faz a tela do registro renderizar de novo antes de sair: o registro apagado não pode ser
+    // buscado outra vez por isso (daria 404).
+    await waitFor(() => expect(sent(calls, 'GET', `/api/vehicles/${id}`).length).toBeGreaterThan(1))
+    expect(sent(calls, 'GET', recordPath)).toHaveLength(1)
   })
 
   it('cancelar a exclusão não apaga nada', async () => {

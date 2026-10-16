@@ -2,7 +2,7 @@ import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClie
 import { api } from '../client'
 import type { components } from '../schema'
 import { isConflict, problemOf, unwrap, unwrapEmpty } from '../unwrap'
-import { invalidateVehicle, vehicleKeys } from './vehicles'
+import { invalidateVehicle, invalidateVehicleLists, vehicleKeys } from './vehicles'
 
 type Schemas = components['schemas']
 
@@ -83,15 +83,23 @@ export function useDeleteRecord(vehicleId: string) {
     mutationFn: (recordId: string) =>
       unwrapEmpty(api.DELETE('/api/vehicles/{vehicleId}/records/{recordId}', { params: { path: { vehicleId, recordId } } })),
     onSuccess: (_, recordId) => {
-      // O registro deixou de existir: sai do cache em vez de ser buscado de novo e dar 404. Excluir não mexe na km
-      // do veículo (V4) nem nos lembretes (R6): buscam de novo o histórico e os gastos (do veículo, da lista de
-      // veículos e do painel, cuja chave vive sob `vehicleKeys.all`).
-      queryClient.removeQueries({ queryKey: recordKeys.one(vehicleId, recordId) })
-      return Promise.all([
-        queryClient.invalidateQueries({ queryKey: recordKeys.lists(vehicleId) }),
-        queryClient.invalidateQueries({ queryKey: [...vehicleKeys.one(vehicleId), 'summary'] }),
-        queryClient.invalidateQueries({ queryKey: vehicleKeys.all }),
-      ])
+      // A foto de capa que era deste registro saiu com ele (o banco limpa a capa): o cache do veículo para de apontar
+      // para ela já, sem esperar a busca nova, para a página do veículo não mostrar uma imagem quebrada.
+      const record = queryClient.getQueryData<Schemas['RecordDto']>(recordKeys.one(vehicleId, recordId))
+      queryClient.setQueryData<Schemas['VehicleDto']>(vehicleKeys.one(vehicleId), (vehicle) =>
+        vehicle?.coverPhotoId && record?.attachments.some((attachment) => attachment.id === vehicle.coverPhotoId)
+          ? { ...vehicle, coverPhotoId: null }
+          : vehicle,
+      )
+      // O resto do veículo (histórico, gastos, capa), as listas e o painel buscam de novo; o registro apagado fica de
+      // fora (buscá-lo daria 404) e sai do cache sozinho quando ninguém mais o observa. Sem esperar: a tela volta ao
+      // veículo na hora, mostrando o cache já sem a capa enquanto a busca nova acontece.
+      const deleted = recordKeys.one(vehicleId, recordId)
+      void queryClient.invalidateQueries({
+        queryKey: vehicleKeys.one(vehicleId),
+        predicate: (query) => !(query.queryKey[2] === deleted[2] && query.queryKey[3] === deleted[3]),
+      })
+      void invalidateVehicleLists(queryClient)
     },
   })
 }

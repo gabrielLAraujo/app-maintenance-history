@@ -11,6 +11,7 @@ internal sealed class CreateVehicleHandler(
     ICurrentUser currentUser,
     IReadDbContext db,
     IDemoLimits demoLimits,
+    IUnitOfWork unitOfWork,
     IVehicleRepository vehicles,
     IAppClock clock) : ICommandHandler<CreateVehicleCommand, Guid>
 {
@@ -18,11 +19,19 @@ internal sealed class CreateVehicleHandler(
     {
         var ownerId = currentUser.UserId;
 
-        // Spec 3.2: a conta demo tem um teto de veículos; as contas reais, não.
-        if (currentUser.IsDemo
-            && await db.Query<Vehicle>().CountAsync(vehicle => vehicle.OwnerId == ownerId, ct) >= demoLimits.MaxVehicles)
+        // Spec 3.2: a conta demo tem um teto de veículos; as contas reais, não. Contar e gravar acontecem sob uma trava da
+        // conta, solta só depois do commit (ou do descarte): pedidos simultâneos não furam o teto.
+        if (currentUser.IsDemo)
         {
-            return DemoErrors.VehicleLimitReached(demoLimits.MaxVehicles);
+            var gate = await demoLimits.EnterVehicleGateAsync(ownerId, ct);
+            if (gate is null)
+                return DemoErrors.Busy;
+
+            unitOfWork.AfterCommit(_ => Release(gate));
+            unitOfWork.OnRollback(_ => Release(gate));
+
+            if (await db.Query<Vehicle>().CountAsync(vehicle => vehicle.OwnerId == ownerId, ct) >= demoLimits.MaxVehicles)
+                return DemoErrors.VehicleLimitReached(demoLimits.MaxVehicles);
         }
 
         var vehicle = Vehicle.Create(
@@ -33,5 +42,11 @@ internal sealed class CreateVehicleHandler(
 
         vehicles.Add(vehicle);
         return vehicle.Id;
+    }
+
+    private static Task Release(IDisposable gate)
+    {
+        gate.Dispose();
+        return Task.CompletedTask;
     }
 }

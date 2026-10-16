@@ -65,6 +65,22 @@ public sealed class OpenApiContractTests(GarageApiFactory factory) : IDisposable
     }
 
     [Fact]
+    public async Task Every_write_endpoint_declares_400()
+    {
+        // Antiforgery ausente ou inválido dá 400 em toda escrita (POST, PUT, PATCH, DELETE) sob /api, e um corpo inválido
+        // (JSON quebrado, campo com tipo errado) também.
+        string[] writes = ["POST", "PUT", "PATCH", "DELETE"];
+        using var document = await LoadDocumentAsync(factory.CreateClient());
+        var failures = Operations(document.RootElement)
+            .Where(entry => writes.Contains(entry.Method))
+            .Where(entry => !entry.Operation.GetProperty("responses").TryGetProperty("400", out _))
+            .Select(entry => $"{entry.Method} {entry.Path}: é escrita e não declara 400.")
+            .ToList();
+
+        AssertNoFailures(failures);
+    }
+
+    [Fact]
     public async Task Every_endpoint_has_a_unique_operation_id_and_a_tag()
     {
         using var document = await LoadDocumentAsync(factory.CreateClient());

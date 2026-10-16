@@ -183,7 +183,7 @@ flowchart LR
 | Login | ASP.NET Identity, cookie `garage_auth` (HttpOnly, Secure, SameSite=Strict, 14 dias renováveis com o uso). Senha de 10+ caracteres; 5 senhas erradas bloqueiam a conta por 15 minutos. Cadastro de conta controlado por `Auth:AllowRegistration` (desligado, a rota nem existe). As chaves do Data Protection ficam em `DataProtection:KeysPath` (volume) para a sessão sobreviver ao deploy. |
 | CSRF | Antiforgery: `GET /api/auth/antiforgery` grava o cookie `XSRF-TOKEN`; o front devolve no cabeçalho `X-XSRF-TOKEN` em toda escrita. |
 | Autorização | Todo `/api` exige login por padrão; só health, auth e rotas públicas são anônimas. Dono verificado em cada caso de uso. |
-| Rate limit | Políticas por IP (login e cadastro na mesma cota; visão pública; fotos da página pública, com cota própria) e por usuário (catálogo, uploads); excesso → 429 `rate_limit.exceeded`. |
+| Rate limit | Políticas por IP (login e cadastro na mesma cota; visão pública; fotos da página pública, com cota própria; criação de demo), com IPv6 agrupado por rede /64, e por usuário (catálogo, uploads); cada conta demo tem ainda uma cota de escritas por hora (fora `/api/auth`); excesso → 429 `rate_limit.exceeded` (ou `demo.write_quota_exceeded`, na cota da demo), sempre com `Retry-After`. |
 | Cabeçalhos | `SecurityHeadersMiddleware` põe `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` e `Referrer-Policy: no-referrer` em toda resposta (inclusive erros) e, por HTTPS fora de Development, `Strict-Transport-Security: max-age=31536000`. Rotas públicas e a página `/p/` com `X-Robots-Tag: noindex`; o `index.html` do front também traz `<meta name="referrer" content="no-referrer">`. |
 | Cache | Visão pública `no-store`; foto pública `private, max-age=3600` (revogar o link barra as cargas novas); anexos do dono `private, no-store`. |
 | Logs | O token dos links públicos sai mascarado (`/api/public/***`, `/p/***`) em toda propriedade de todo evento do Serilog (`PublicTokenMasking`), inclusive o `RequestPath` do escopo da requisição. Cliente que abandona a requisição não vira `Error`. |
@@ -219,7 +219,7 @@ Todos sob `/api`. A documentação interativa (`/scalar`) e o contrato (`/openap
 | Saúde | `GET health` (vivo) · `GET health/ready` (banco ok) |
 
 - `POST auth/register`, `POST demo/seed` e `POST auth/demo` só são mapeados com `Auth:AllowRegistration`, `Demo:Enabled` e `Demo:Visitors:Enabled` ligados; desligados, as rotas nem existem (404).
-- **Demo por visitante** (`POST auth/demo`): cria uma conta sem senha (`IsDemo`, vence em `Demo:Visitors:TtlHours`), semeia os dados de exemplo nela e abre a sessão com validade absoluta igual à da conta. A conta demo não envia anexos (403 `demo.uploads_disabled`), tem até `Demo:Visitors:MaxVehicles` veículos (422 `demo.vehicle_limit_reached`) e vence no logout; o `DemoCleanupService` apaga as vencidas com tudo o que é delas (e os arquivos, depois do commit). Detalhes na spec `2026-10-16-nova-interface-e-demo-design.md`.
+- **Demo por visitante** (`POST auth/demo`): cria uma conta sem senha (`IsDemo`, vence em `Demo:Visitors:TtlHours`), semeia os dados de exemplo nela e abre a sessão com validade absoluta igual à da conta. A conta demo não envia anexos (403 `demo.uploads_disabled`), tem até `Demo:Visitors:MaxVehicles` veículos (422 `demo.vehicle_limit_reached`) e vence no logout (o cookie antigo passa a ser recusado em toda a API, pela validação do cookie). Os tetos valem sob concorrência: contar e criar a conta acontecem sob `pg_advisory_xact_lock`, e contar e gravar o veículo sob uma trava da conta, solta depois do commit e com espera de no máximo 10 s (`demo.busy`, 503; a API roda numa instância). O `DemoCleanupService` apaga as vencidas com tudo o que é delas (e os arquivos, depois do commit), na subida da API e a cada intervalo; se a semeadura falha, a conta sai com os arquivos já copiados. Detalhes na spec `2026-10-16-nova-interface-e-demo-design.md`.
 - Fora de `/api`, `/openapi` e `/scalar`, a API devolve o `index.html` do front (seção 11); a SPA nunca responde por baixo de `/api`.
 - **Contrato:** todo endpoint declara `.WithName`, `.WithTags`, `.Produces<T>()` do sucesso e `.ProducesProblem()` de cada erro. O `OpenApiContractTests` reprova o endpoint que ficar sem nome, tag ou resposta de sucesso com schema (os de arquivo declaram só o tipo de mídia; os 204 não têm corpo). O front gera os tipos desse documento.
 
@@ -228,11 +228,11 @@ Todos sob `/api`. A documentação interativa (`/scalar`) e o contrato (`/openap
 | Projeto | O que cobre | Testes |
 |---|---|---|
 | `Garage.Domain.Tests` | Regras puras (km, cronologia, status de lembrete, assinatura de arquivo, Money, Plate, capa do veículo…) | 202 |
-| `Garage.Api.IntegrationTests` | API de ponta a ponta com **Postgres real em container** (Testcontainers) e `WebApplicationFactory`: auth, CSRF, rate limit, cada endpoint, catálogo FIPE (com FIPE falsa), vazamentos na página pública (inclusive o token nos logs), cabeçalhos de segurança e de cache, configuração validada na partida, dados de exemplo, capa, resumos de gastos, demo por visitante (sessão, restrições e limpeza), hosting do front e o contrato OpenAPI | 294 |
-| `Garage.Infrastructure.Tests` | Relógio em America/Sao_Paulo, armazenamento em disco, reprocessamento de fotos (sRGB), cliente e tradutor da FIPE | 85 |
+| `Garage.Api.IntegrationTests` | API de ponta a ponta com **Postgres real em container** (Testcontainers) e `WebApplicationFactory`: auth, CSRF, rate limit, cada endpoint, catálogo FIPE (com FIPE falsa), vazamentos na página pública (inclusive o token nos logs), cabeçalhos de segurança e de cache, configuração validada na partida, dados de exemplo, capa, resumos de gastos, demo por visitante (sessão, restrições, tetos sob concorrência e limpeza), hosting do front e o contrato OpenAPI | 306 |
+| `Garage.Infrastructure.Tests` | Relógio em America/Sao_Paulo, armazenamento em disco, reprocessamento de fotos (sRGB), cliente e tradutor da FIPE, trava do teto da demo | 87 |
 | `Garage.ArchitectureTests` | Domínio não depende de nada, Application não depende das camadas externas, Infrastructure não depende da Api, handlers e decorators `internal sealed` | 4 |
-| **Back-end** | `dotnet build` com 0 avisos (o build trata aviso como erro) e `dotnet test` verde | **585** |
-| Front (`frontend/`) | Vitest + Testing Library (jsdom): cliente HTTP e erros, autenticação, landing e demo, menu, painel, telas, formulários, FIPE, lembretes, gastos, compartilhamento, dossiê público, recarga depois de deploy | 277 (23 arquivos) |
+| **Back-end** | `dotnet build` com 0 avisos (o build trata aviso como erro) e `dotnet test` verde | **599** |
+| Front (`frontend/`) | Vitest + Testing Library (jsdom): cliente HTTP e erros, autenticação, landing e demo, menu, painel, telas, formulários, FIPE, lembretes, gastos, compartilhamento, dossiê público, recarga depois de deploy | 281 (23 arquivos) |
 
 Rodar: `cd backend && dotnet test` (precisa do Docker ligado para os testes de integração) e `cd frontend && npm test`.
 
@@ -252,7 +252,7 @@ Rodar: `cd backend && dotnet test` (precisa do Docker ligado para os testes de i
 |---|---|
 | Plano 1 — back-end (T1–T15: domínio, pipeline, auth, veículos, lembretes, registros, anexos, links públicos, catálogo FIPE, contrato OpenAPI e README) e as correções da revisão final | Concluído: 525 testes verdes e build sem avisos |
 | Plano 2 — front (login e cadastro, painel, veículos com FIPE, histórico e registros com peças e anexos, lembretes, compartilhamento, página pública, imagem única) | Concluído: 231 testes verdes |
-| Plano 3 — nova interface e demo por visitante (capa, resumos de gastos, `GET /reminders`, demo sem cadastro com limpeza, landing, menu lateral, painel, páginas de veículos e lembretes, dossiê público) | Na branch `feat/nova-interface`, aguardando revisão: 585 testes no back-end e 277 no front |
+| Plano 3 — nova interface e demo por visitante (capa, resumos de gastos, `GET /reminders`, demo sem cadastro com limpeza, landing, menu lateral, painel, páginas de veículos e lembretes, dossiê público) | Em produção desde 16/10/2026 (PR #1, com as correções da revisão final; os itens adiados entraram no PR #2): 599 testes no back-end e 281 no front |
 | Produção | `garagem.frauchesgabriel.work` roda a imagem única com o front e o back-end dos dois planos |
 | Pendências | Rotina de backup dos volumes `/data/attachments` e `/data/keys` (o agendado do Coolify cobre só o banco); testar uma restauração do Postgres antes de cadastrar dados reais; depois de criar a conta, manter `Auth:AllowRegistration` desligado (spec, seção 12) |
 
@@ -278,5 +278,6 @@ Lidas de `appsettings*.json`, user-secrets (desenvolvimento) ou variáveis de am
 | `RateLimits:PublicPhotosPerMinute` | `600` | Fotos da página pública (`GET public/{token}/attachments/{attId}`), por IP |
 | `RateLimits:CatalogPerMinute` | `30` | Catálogo, por usuário |
 | `RateLimits:UploadsPerMinute` | `30` | Upload de anexos, por usuário |
-| `RateLimits:DemoPerHour` | `5` | `POST /api/auth/demo`, por IP e por hora |
+| `RateLimits:DemoPerHour` | `5` | `POST /api/auth/demo`, por IP (IPv6 por rede /64) e por hora |
+| `RateLimits:DemoWritesPerHour` | `300` | Escritas (POST, PUT, PATCH, DELETE) de cada conta demo, por hora; `/api/auth` fica de fora |
 | `MIGRATE_ON_START` | `true` | Só no contêiner: `false` faz o entrypoint pular as migrations |

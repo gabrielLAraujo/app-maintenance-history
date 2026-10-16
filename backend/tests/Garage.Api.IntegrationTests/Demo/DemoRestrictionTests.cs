@@ -48,6 +48,49 @@ public sealed class DemoRestrictionTests(GarageApiFactory factory)
     }
 
     [Fact]
+    public async Task Vehicle_limit_holds_under_concurrent_requests()
+    {
+        using var host = factory.WithClock(_clock);
+        using var demo = await StartDemoAsync(host);
+
+        // A demo já tem 2 veículos e o teto é 5: oito pedidos ao mesmo tempo criam só 3.
+        var responses = await Task.WhenAll(Enumerable.Range(0, 8)
+            .Select(_ => demo.PostAsJsonAsync("/api/vehicles", TestData.Vehicle(), TestJson.Options)));
+
+        Assert.Equal(3, responses.Count(response => response.StatusCode == HttpStatusCode.Created));
+        foreach (var rejected in responses.Where(response => response.StatusCode != HttpStatusCode.Created))
+            await rejected.AssertProblemAsync(HttpStatusCode.UnprocessableEntity, "demo.vehicle_limit_reached");
+        Assert.Equal(5, (await VehiclesAsync(demo)).Count);
+        foreach (var response in responses)
+            response.Dispose();
+    }
+
+    [Fact]
+    public async Task Demo_writes_are_rate_limited_per_account()
+    {
+        using var host = factory.WithClock(_clock)
+            .WithWebHostBuilder(builder => builder.UseSetting("RateLimits:DemoWritesPerHour", "2"));
+        using var demo = await StartDemoAsync(host);
+
+        await demo.CreateVehicleAsync();
+        await demo.CreateVehicleAsync();
+        using var third = await demo.PostAsJsonAsync("/api/vehicles", TestData.Vehicle(), TestJson.Options);
+
+        // A cota é por hora: a mensagem diz isso (não o "aguarde um minuto" das outras), e o Retry-After diz quanto falta.
+        var problem = await third.AssertProblemAsync(HttpStatusCode.TooManyRequests, "demo.write_quota_exceeded");
+        Assert.Equal("A demonstração permite até 2 alterações por hora. Tente de novo mais tarde.", problem.GetProperty("detail").GetString());
+        Assert.True(third.Headers.RetryAfter?.Delta > TimeSpan.Zero, "Sem Retry-After.");
+        // Ler continua liberado, e a conta real não entra nessa cota.
+        Assert.Equal(4, (await VehiclesAsync(demo)).Count);
+        using var real = await host.CreateUserClientAsync();
+        for (var i = 0; i < 3; i++)
+            await real.CreateVehicleAsync();
+        // Sair continua possível com a cota esgotada (/api/auth fica de fora).
+        using var logout = await demo.PostAsync("/api/auth/logout", content: null);
+        Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
+    }
+
+    [Fact]
     public async Task Real_accounts_are_not_limited()
     {
         using var owner = await factory.CreateUserClientAsync();

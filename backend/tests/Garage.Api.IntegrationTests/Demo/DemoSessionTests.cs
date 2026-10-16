@@ -1,9 +1,12 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Garage.Api.IntegrationTests.Infrastructure;
+using Garage.Infrastructure.Demo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Garage.Api.IntegrationTests.Demo;
@@ -121,6 +124,52 @@ public sealed class DemoSessionTests(GarageApiFactory factory)
             using var response = await replay.SendAsync(request);
             Assert.True(response.StatusCode == HttpStatusCode.Unauthorized, $"{path}: {(int)response.StatusCode}");
         }
+    }
+
+    [Fact]
+    public async Task Max_active_holds_under_concurrent_requests()
+    {
+        using var counting = factory.WithClock(_clock);
+        int active;
+        await using (var scope = counting.Services.CreateAsyncScope())
+            active = await scope.ServiceProvider.GetRequiredService<DemoAccountService>().CountActiveAsync(CancellationToken.None);
+        using var host = counting.WithWebHostBuilder(builder =>
+            builder.UseSetting("Demo:Visitors:MaxActive", (active + 3).ToString(CultureInfo.InvariantCulture)));
+
+        // Oito visitantes ao mesmo tempo, com vaga para três: o teto não pode ser furado pela corrida entre contar e criar.
+        var clients = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => host.CreateAnonymousClientAsync()));
+        var responses = await Task.WhenAll(clients.Select(client => client.PostAsync(DemoUrl, content: null)));
+
+        Assert.Equal(3, responses.Count(response => response.StatusCode == HttpStatusCode.Created));
+        Assert.Equal(5, responses.Count(response => response.StatusCode == HttpStatusCode.ServiceUnavailable));
+        foreach (var response in responses)
+            response.Dispose();
+        foreach (var client in clients)
+            client.Dispose();
+    }
+
+    [Fact]
+    public async Task Demo_rate_limit_counts_an_ipv6_64_network_as_one_client()
+    {
+        using var limited = factory.WithClock(_clock)
+            .WithWebHostBuilder(builder => builder.UseSetting("RateLimits:DemoPerHour", "1"));
+
+        // Um provedor entrega uma rede /64 inteira para cada cliente: trocar o fim do endereço não pode render outra cota.
+        using var first = await StartFromAsync(limited, "2001:db8:1:2::1");
+        using var sameNetwork = await StartFromAsync(limited, "2001:db8:1:2:ffff:ffff:ffff:ffff");
+        using var otherNetwork = await StartFromAsync(limited, "2001:db8:1:3::1");
+
+        await AssertCreatedAsync(first);
+        await sameNetwork.AssertProblemAsync(HttpStatusCode.TooManyRequests, "rate_limit.exceeded");
+        await AssertCreatedAsync(otherNetwork);
+    }
+
+    private static async Task<HttpResponseMessage> StartFromAsync(WebApplicationFactory<Program> host, string forwardedFor)
+    {
+        using var client = await host.CreateAnonymousClientAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Post, DemoUrl);
+        request.Headers.Add("X-Forwarded-For", forwardedFor);
+        return await client.SendAsync(request);
     }
 
     private static async Task<HttpClient> StartDemoAsync(WebApplicationFactory<Program> host)

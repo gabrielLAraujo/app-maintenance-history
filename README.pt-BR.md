@@ -64,7 +64,7 @@ Os detalhes, com diagramas do caminho de uma requisição e do domínio, estão 
 
 ## Testes
 
-862 testes automatizados: 585 no back-end e 277 no front-end.
+880 testes automatizados: 599 no back-end e 281 no front-end.
 
 - **Domínio:** regras de km, cronologia, status de lembrete, assinatura de arquivo, regra da capa.
 - **Integração:** com Postgres real em container, cobre autenticação, CSRF, rate limit, cada endpoint, os resumos de gastos e a demo por visitante (sessão, restrições e limpeza).

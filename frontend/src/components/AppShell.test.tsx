@@ -1,7 +1,7 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { json, mockFetch, resetCookies, type Handler } from '../test/fetch-mock'
+import { json, mockFetch, noContent, problem, resetCookies, type Handler } from '../test/fetch-mock'
 import { renderApp } from '../test/renderApp'
 import { account, signedInRoutes } from '../test/signedIn'
 
@@ -105,5 +105,50 @@ describe('conta demo', () => {
     // O e-mail técnico da conta demo nunca aparece.
     expect(screen.queryByText(demo.email)).not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('demo.garagem.invalid')
+  })
+
+  it('a demo que sai volta para a landing, não para o login', async () => {
+    const demo = demoAccount()
+    let loggedOut = false
+    fakeApi({
+      'GET /api/auth/me': () => (loggedOut ? problem(401, { status: 401 }) : json(demo)),
+      'POST /api/auth/logout': () => {
+        loggedOut = true
+        return noContent()
+      },
+    })
+    const { router } = renderApp('/vehicles')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Sair' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    expect(await screen.findByRole('heading', { level: 1, name: /Tudo o que já foi feito no seu carro/ })).toBeInTheDocument()
+  })
+
+  it('quando a sessão da demo vence no meio do uso, o visitante volta para a landing (não há senha para o login)', async () => {
+    const demo = demoAccount()
+    fakeApi({
+      'GET /api/auth/me': () => json(demo),
+      'GET /api/vehicles': () => problem(401, { status: 401 }),
+    })
+    const { router } = renderApp('/vehicles')
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+  })
+
+  it('a conta comum que sai vai para o login', async () => {
+    let loggedOut = false
+    fakeApi({
+      'GET /api/auth/me': () => (loggedOut ? problem(401, { status: 401 }) : json(account)),
+      'POST /api/auth/logout': () => {
+        loggedOut = true
+        return noContent()
+      },
+    })
+    const { router } = renderApp('/vehicles')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Sair' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
   })
 })

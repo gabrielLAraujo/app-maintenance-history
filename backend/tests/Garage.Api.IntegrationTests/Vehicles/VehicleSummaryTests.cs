@@ -69,6 +69,25 @@ public sealed class VehicleSummaryTests(GarageApiFactory factory)
     }
 
     [Fact]
+    public async Task Records_without_km_nor_cost_count_but_add_no_cost()
+    {
+        using var owner = await UserAsync();
+        var vehicleId = await owner.CreateVehicleAsync();
+        await owner.CreateRecordAsync(vehicleId, TestData.Record(odometer: null));
+        await owner.CreateRecordAsync(vehicleId, TestData.Record(title: "Lavagem", odometer: null, category: "bodyPaint"));
+
+        var summary = await GetSummaryAsync(owner, vehicleId);
+
+        Assert.Equal(0m, summary.GetProperty("totalCost").GetDecimal());
+        AssertType(summary.GetProperty("maintenance"), 0m, 2);
+        AssertType(summary.GetProperty("modification"), 0m, 0);
+        Assert.Equal(JsonValueKind.Null, summary.GetProperty("kmTracked").ValueKind);
+        Assert.Equal(JsonValueKind.Null, summary.GetProperty("costPerKm").ValueKind);
+        Assert.Empty(summary.GetProperty("byCategory").EnumerateArray());
+        Assert.All(Months(summary), month => Assert.Equal(0m, month.Cost));
+    }
+
+    [Fact]
     public async Task Cost_per_km_is_null_below_1000_km()
     {
         using var owner = await UserAsync();

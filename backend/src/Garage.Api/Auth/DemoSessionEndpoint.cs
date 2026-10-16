@@ -44,10 +44,9 @@ internal sealed class DemoSessionEndpoint : IEndpoint
         SignInManager<AppUser> signInManager,
         CancellationToken ct)
     {
-        if (await demos.CountActiveAsync(ct) >= options.Value.MaxActive)
+        var user = await demos.TryCreateAsync(options.Value.MaxActive, ct);
+        if (user is null)
             return DemoErrors.Unavailable.ToProblem();
-
-        var user = await demos.CreateAsync(ct);
 
         // Nenhuma conta demo vazia fica para trás: se a semeadura falhar, a conta sai antes da resposta.
         Result<DemoSeedResult> seeded;

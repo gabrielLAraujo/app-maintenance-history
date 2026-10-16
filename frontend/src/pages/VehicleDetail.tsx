@@ -151,11 +151,9 @@ export function VehicleDetail() {
               className="block h-56 w-full rounded-[14px] bg-track object-cover sm:h-[300px]"
             />
           ) : (
-            // A capa sai das fotos dos registros: o convite leva ao histórico, onde cada foto tem "Usar como capa".
-            <Link
-              to={`/vehicles/${id}`}
-              className="flex h-56 w-full flex-col items-center justify-center gap-2 rounded-[14px] bg-track px-4 text-center text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-ink sm:h-[300px]"
-            >
+            // A capa sai das fotos dos registros (sem upload próprio): a caixa explica onde escolher, sem ser um link que,
+            // na aba Histórico, não levaria a lugar nenhum.
+            <div className="flex h-56 w-full flex-col items-center justify-center gap-2 rounded-[14px] bg-track px-4 text-center text-muted sm:h-[300px]">
               <svg
                 viewBox="0 0 24 24"
                 className="size-8"
@@ -169,9 +167,9 @@ export function VehicleDetail() {
                 <path d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z" />
                 <circle cx="12" cy="13" r="4" />
               </svg>
-              <span className="font-semibold">Adicionar foto de capa</span>
-              <span className="text-[13px]">Escolha uma foto de um registro do histórico.</span>
-            </Link>
+              <span className="font-semibold text-ink">Sem foto de capa</span>
+              <span className="max-w-xs text-[13px]">Abra um registro com foto no histórico e escolha "Usar como capa".</span>
+            </div>
           )}
         </div>
 
