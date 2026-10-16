@@ -84,6 +84,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/demo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["StartDemoSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -228,6 +244,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/garage/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetGarageSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/{token}/attachments/{attachmentId}": {
         parameters: {
             query?: never;
@@ -340,6 +372,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListAllReminders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/vehicles/{vehicleId}/share-links": {
         parameters: {
             query?: never;
@@ -436,6 +484,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/vehicles/{vehicleId}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetVehicleSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vehicles/{vehicleId}/cover-photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["SetVehicleCoverPhoto"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/vehicles/{vehicleId}/odometer": {
         parameters: {
             query?: never;
@@ -488,6 +568,7 @@ export interface components {
         AttachmentKind: "photo" | "document";
         AuthConfigResponse: {
             registrationEnabled: boolean;
+            demoEnabled: boolean;
         };
         CatalogDetails: {
             fipeCode: string;
@@ -529,6 +610,11 @@ export interface components {
         };
         /** @enum {unknown} */
         Category: "engine" | "transmission" | "suspension" | "brakes" | "electrical" | "wheelsTires" | "bodyPaint" | "interior" | "other";
+        CategoryCostDto: {
+            category: components["schemas"]["Category"];
+            /** Format: double */
+            cost: number | string;
+        };
         CorrectOdometerRequest: {
             /** Format: int32 */
             km: number | string;
@@ -582,6 +668,10 @@ export interface components {
             /** Format: int32 */
             reminders: number | string;
         };
+        DemoSessionResponse: {
+            /** Format: date-time */
+            expiresAt: string;
+        };
         DueReminderDto: {
             /** Format: uuid */
             vehicleId: string;
@@ -593,6 +683,22 @@ export interface components {
         };
         /** @enum {unknown} */
         Fuel: "gasoline" | "ethanol" | "flex" | "diesel" | "hybrid" | "electric" | "other";
+        GarageSummaryDto: {
+            /** Format: int32 */
+            year: number | string;
+            /** Format: double */
+            yearCost: number | string;
+            /** Format: int32 */
+            yearRecordCount: number | string;
+            /** Format: int32 */
+            yearVehicleCount: number | string;
+            byMonth: components["schemas"]["MonthCostDto"][];
+            recentRecords: components["schemas"]["RecentRecordDto"][];
+            /** Format: int32 */
+            recordCount: number | string;
+            /** Format: date */
+            firstRecordDate: null | string;
+        };
         HttpValidationProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -614,6 +720,14 @@ export interface components {
             /** Format: uuid */
             id: string;
             email: string;
+            isDemo: boolean;
+            /** Format: date-time */
+            demoExpiresAt: null | string;
+        };
+        MonthCostDto: {
+            month: string;
+            /** Format: double */
+            cost: number | string;
         };
         PagedResultOfRecordListItemDto: {
             items: components["schemas"]["RecordListItemDto"][];
@@ -699,8 +813,21 @@ export interface components {
             /** Format: int32 */
             currentOdometer: number | string;
             includesCosts: boolean;
+            coverPhoto: null | components["schemas"]["PublicPhotoDto"];
             records: components["schemas"]["PublicRecordDto"][];
             nextCursor: null | string;
+        };
+        RecentRecordDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            vehicleId: string;
+            vehicleName: string;
+            title: string;
+            /** Format: date */
+            date: string;
+            /** Format: double */
+            totalCost: number | string;
         };
         RecordDto: {
             /** Format: uuid */
@@ -739,6 +866,13 @@ export interface components {
             /** Format: int32 */
             attachmentCount: number | string;
         };
+        RecordRefDto: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** Format: date */
+            date: string;
+        };
         /** @enum {unknown} */
         RecordType: "maintenance" | "modification";
         RegisterRequest: {
@@ -775,6 +909,10 @@ export interface components {
         SetAttachmentVisibilityRequest: {
             isPublic: null | boolean;
         };
+        SetCoverPhotoRequest: {
+            /** Format: uuid */
+            attachmentId: null | string;
+        };
         ShareLinkDto: {
             /** Format: uuid */
             id: string;
@@ -793,6 +931,12 @@ export interface components {
         };
         /** Format: binary */
         Stream: string;
+        TypeSpendingDto: {
+            /** Format: double */
+            cost: number | string;
+            /** Format: int32 */
+            count: number | string;
+        };
         UpdateOdometerRequest: {
             /** Format: int32 */
             km: number | string;
@@ -872,8 +1016,25 @@ export interface components {
             /** Format: date-time */
             odometerUpdatedAt: string;
             catalog: null | components["schemas"]["CatalogRefInput"];
+            /** Format: uuid */
+            coverPhotoId: null | string;
             /** Format: uint32 */
             rowVersion: number | string;
+        };
+        VehicleSpendingDto: {
+            /** Format: double */
+            totalCost: number | string;
+            maintenance: components["schemas"]["TypeSpendingDto"];
+            modification: components["schemas"]["TypeSpendingDto"];
+            /** Format: date */
+            firstRecordDate: null | string;
+            /** Format: int32 */
+            kmTracked: null | number | string;
+            /** Format: double */
+            costPerKm: null | number | string;
+            byCategory: components["schemas"]["CategoryCostDto"][];
+            byMonth: components["schemas"]["MonthCostDto"][];
+            lastRecord: null | components["schemas"]["RecordRefDto"];
         };
         VehicleSummaryDto: {
             /** Format: uuid */
@@ -886,6 +1047,12 @@ export interface components {
             plate: null | string;
             /** Format: int32 */
             currentOdometer: number | string;
+            /** Format: uuid */
+            coverPhotoId: null | string;
+            /** Format: double */
+            totalCost: number | string;
+            /** Format: date */
+            lastRecordDate: null | string;
         };
         /** @enum {unknown} */
         VehicleType: "car" | "motorcycle" | "truck";
@@ -1102,6 +1269,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -1183,6 +1359,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthConfigResponse"];
+                };
+            };
+        };
+    };
+    StartDemoSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoSessionResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -1619,6 +1842,35 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetGarageSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GarageSummaryDto"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2263,6 +2515,35 @@ export interface operations {
             };
         };
     };
+    ListAllReminders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DueReminderDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListShareLinks: {
         parameters: {
             query?: never;
@@ -2542,6 +2823,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     GetVehicle: {
@@ -2749,6 +3039,106 @@ export interface operations {
             };
             /** @description Service Unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetVehicleSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleSpendingDto"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetVehicleCoverPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetCoverPhotoRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
