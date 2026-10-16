@@ -38,7 +38,7 @@ export function Tabs<Id extends string>({ label, tabs, value, onChange, children
 
   return (
     <div>
-      <div role="tablist" aria-label={label} className="flex border-b border-slate-200">
+      <div role="tablist" aria-label={label} className="flex border-b border-line">
         {tabs.map((tab, index) => {
           const selected = tab.id === value
 
@@ -57,10 +57,10 @@ export function Tabs<Id extends string>({ label, tabs, value, onChange, children
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(tab.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
-              className={`-mb-px min-h-12 flex-1 border-b-2 px-2 text-base font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-amber-500 ${
+              className={`-mb-px min-h-12 flex-1 border-b-2 px-2 text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-amber-ink ${
                 selected
-                  ? 'border-amber-500 text-slate-900'
-                  : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                  ? 'border-amber text-ink'
+                  : 'border-transparent text-muted hover:border-line-strong hover:text-ink'
               }`}
             >
               {tab.label}

@@ -9,7 +9,7 @@ type Props = {
 /** Uma opção de escolha única em forma de botão grande (44px). A marcada fica âmbar. Use dentro de um `<fieldset>`. */
 export function OptionPill({ label, children }: Props) {
   return (
-    <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-lg bg-white px-3 text-base font-medium text-slate-700 ring-1 ring-inset ring-slate-300 has-checked:bg-amber-100 has-checked:text-slate-900 has-checked:ring-2 has-checked:ring-amber-500 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-amber-500">
+    <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-control bg-surface px-3 text-base font-semibold text-ink-2 ring-1 ring-inset ring-line-strong has-checked:bg-amber-soft has-checked:text-ink has-checked:ring-2 has-checked:ring-amber has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-amber-ink">
       {children}
       {label}
     </label>

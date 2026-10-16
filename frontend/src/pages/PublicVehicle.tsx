@@ -7,6 +7,7 @@ import { Alert } from '../components/Alert'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { Km } from '../components/Km'
+import { PlateChip } from '../components/PlateChip'
 import { Money } from '../components/Money'
 import { Spinner } from '../components/Spinner'
 import { formatDate, formatKm, formatMoney, formatQuantity, toNumber } from '../lib/format'
@@ -121,11 +122,7 @@ function VehicleHeader({ vehicle }: { vehicle: Schemas['PublicVehicleDto'] }) {
       <p className="mt-1 text-slate-600">
         {[vehicle.nickname && fullName, vehicle.generation, vehicle.version, fuelLabels[vehicle.fuel]].filter(Boolean).join(' · ')}
       </p>
-      {vehicle.plate && (
-        <span className="mt-2 inline-block rounded-md border border-slate-300 bg-white px-2 py-0.5 font-mono text-sm font-semibold tracking-wider">
-          {vehicle.plate}
-        </span>
-      )}
+      {vehicle.plate && <PlateChip plate={vehicle.plate} className="mt-2" />}
       <Card className="mt-4">
         <p className="text-sm text-slate-500">Quilometragem</p>
         <Km value={vehicle.currentOdometer} className="block text-2xl font-bold" />

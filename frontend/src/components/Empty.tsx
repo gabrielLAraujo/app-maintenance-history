@@ -11,8 +11,8 @@ type Props = {
 /** Estado vazio: onde ainda não há nada, diz o motivo e põe a ação logo à vista. */
 export function Empty({ title, children, actions }: Props) {
   return (
-    <section className="rounded-xl border-2 border-dashed border-slate-300 bg-white px-4 py-8 text-center sm:px-8">
-      <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+    <section className="rounded-card border-2 border-dashed border-line-strong bg-surface px-4 py-8 text-center sm:px-8">
+      <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-soft text-amber-ink">
         <svg
           viewBox="0 0 24 24"
           className="size-7"
@@ -29,8 +29,8 @@ export function Empty({ title, children, actions }: Props) {
           <circle cx="17" cy="17" r="2" />
         </svg>
       </span>
-      <h2 className="mt-4 text-lg font-semibold">{title}</h2>
-      {children && <div className="mx-auto mt-2 max-w-md text-slate-600">{children}</div>}
+      <h2 className="mt-4 text-lg font-bold">{title}</h2>
+      {children && <div className="mx-auto mt-2 max-w-md text-ink-2">{children}</div>}
       {actions && <div className="mx-auto mt-6 flex max-w-xs flex-col gap-3">{actions}</div>}
     </section>
   )

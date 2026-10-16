@@ -8,5 +8,5 @@ type Props = {
 
 /** Valor em reais ("R$ 1.234,56"), com algarismos de largura fixa para alinhar em listas. */
 export function Money({ value, className = '' }: Props) {
-  return <span className={`tabular-nums ${className}`}>{formatMoney(toNumber(value))}</span>
+  return <span className={`font-mono tabular-nums ${className}`}>{formatMoney(toNumber(value))}</span>
 }

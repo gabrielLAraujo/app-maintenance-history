@@ -54,7 +54,7 @@ export function Modal({ title, onClose, children }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 sm:items-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
@@ -66,9 +66,9 @@ export function Modal({ title, onClose, children }: Props) {
         aria-labelledby={titleId}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
-        className="max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl outline-none sm:max-w-md sm:rounded-2xl"
+        className="max-h-[90dvh] w-full overflow-y-auto rounded-t-cover bg-surface p-5 shadow-xl outline-none sm:max-w-md sm:rounded-cover"
       >
-        <h2 id={titleId} className="text-lg font-semibold">
+        <h2 id={titleId} className="text-lg font-bold">
           {title}
         </h2>
         {children}

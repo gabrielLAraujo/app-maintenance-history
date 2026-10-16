@@ -82,14 +82,14 @@ describe('página pública: o que mostra', () => {
     expect(document.body.textContent).not.toMatch(/R\$/)
     expect(screen.queryByText(/Mão de obra/)).not.toBeInTheDocument()
     expect(screen.queryByText('Total')).not.toBeInTheDocument()
-    expect(document.querySelector('.font-mono')).toBeNull()
+    expect(screen.queryByText(/^Placa /)).not.toBeInTheDocument()
   })
 
   it('a placa aparece só quando a API a devolve', async () => {
     fakePublic(() => json(view({ plate: 'ABC1D23' })))
     open()
 
-    expect(await screen.findByText('ABC1D23')).toBeInTheDocument()
+    expect(await screen.findByText('Placa ABC1D23')).toBeInTheDocument()
   })
 
   it('com custos: preço das peças, mão de obra e total, exatamente como a API manda', async () => {
