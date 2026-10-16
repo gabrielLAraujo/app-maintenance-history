@@ -78,7 +78,7 @@ export function VehicleNew() {
       ) : (
         <div className="space-y-4">
           {draft.catalog && (
-            <div className="flex items-center justify-between gap-3 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 ring-1 ring-inset ring-sky-200">
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-plate-soft px-4 py-3 text-sm text-plate ring-1 ring-inset ring-plate-line">
               <p className="min-w-0">
                 <span className="block font-medium">Dados da FIPE</span>
                 <span className="block truncate">{draft.summary}</span>
@@ -97,7 +97,7 @@ export function VehicleNew() {
             </Alert>
           )}
           {!draft.catalog && !draft.fipeUnavailable && (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-ink-2">
               Preenchimento manual.{' '}
               <button type="button" onClick={() => setDraft(null)} className="min-h-11 font-medium underline">
                 Buscar na FIPE

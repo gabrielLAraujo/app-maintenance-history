@@ -113,8 +113,8 @@ function ReminderFormBody({ initial, submitLabel, onSubmit, onCancel }: BodyProp
       <Field label="Título" autoComplete="off" placeholder="Ex.: Troca de óleo e filtro" error={errors.title?.message} {...register('title')} />
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-slate-700">Repetir a cada</legend>
-        <p className="text-sm text-slate-500">Preencha km, meses ou os dois: o aviso vale para o que chegar primeiro.</p>
+        <legend className="text-sm font-medium text-ink-2">Repetir a cada</legend>
+        <p className="text-sm text-muted">Preencha km, meses ou os dois: o aviso vale para o que chegar primeiro.</p>
         <div className="grid grid-cols-2 gap-3">
           <Field
             label="Intervalo em km"
@@ -136,7 +136,7 @@ function ReminderFormBody({ initial, submitLabel, onSubmit, onCancel }: BodyProp
       </fieldset>
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-slate-700">Quando foi feito pela última vez</legend>
+        <legend className="text-sm font-medium text-ink-2">Quando foi feito pela última vez</legend>
         <Field
           label="Última vez feito em"
           type="date"

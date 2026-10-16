@@ -66,8 +66,8 @@ export function OdometerDialog({ vehicleId, currentKm, startCorrecting = false, 
   return (
     <Modal title={correcting ? 'Corrigir km' : 'Atualizar km'} onClose={onClose}>
       <form onSubmit={submit} noValidate className="mt-3 space-y-4">
-        <p className="text-sm text-slate-600">
-          Km registrada hoje: <Km value={currentKm} className="font-medium text-slate-900" />
+        <p className="text-sm text-ink-2">
+          Km registrada hoje: <Km value={currentKm} className="font-medium text-ink" />
         </p>
         {formError && <Alert variant="error">{formError}</Alert>}
         <Field
@@ -93,7 +93,7 @@ export function OdometerDialog({ vehicleId, currentKm, startCorrecting = false, 
         <button
           type="button"
           onClick={() => switchMode(!correcting)}
-          className="min-h-11 w-full text-sm font-medium text-slate-700 underline hover:text-slate-900"
+          className="min-h-11 w-full text-sm font-medium text-ink-2 underline hover:text-ink"
         >
           {correcting ? 'Voltar para atualizar a km' : 'Digitei a km errada antes? Corrigir km'}
         </button>

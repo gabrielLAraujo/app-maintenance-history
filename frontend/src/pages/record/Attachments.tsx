@@ -7,8 +7,10 @@ import {
   useUploadAttachments,
   type UploadReport,
 } from '../../api/hooks/attachments'
+import { useSetCoverPhoto } from '../../api/hooks/vehicles'
 import type { components } from '../../api/schema'
 import { errorMessage } from '../../api/unwrap'
+import { useAuth } from '../../auth/AuthProvider'
 import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
 import { Card } from '../../components/Card'
@@ -29,10 +31,16 @@ type Props = {
   vehicleId: string
   recordId: string
   attachments: Attachment[]
+  /** A foto que hoje é a capa do veículo (de qualquer registro), ou nulo. */
+  coverPhotoId: string | null
 }
 
-/** Galeria de anexos do registro (fotos em miniatura, documentos em lista) e o envio de novos. */
-export function Attachments({ vehicleId, recordId, attachments }: Props) {
+/**
+ * Galeria de anexos do registro (fotos em miniatura, documentos em lista) e o envio de novos. Cada foto pode virar a
+ * capa do veículo. A conta demo vê os anexos, mas não envia arquivos.
+ */
+export function Attachments({ vehicleId, recordId, attachments, coverPhotoId }: Props) {
+  const { user } = useAuth()
   const photos = attachments.filter((attachment) => attachment.kind === 'photo')
   const documents = attachments.filter((attachment) => attachment.kind === 'document')
   const [removing, setRemoving] = useState<Attachment | null>(null)
@@ -40,35 +48,46 @@ export function Attachments({ vehicleId, recordId, attachments }: Props) {
   return (
     <Card aria-labelledby="attachments-title">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="attachments-title" className="text-base font-semibold">
+        <h2 id="attachments-title" className="text-lg font-bold">
           Anexos
         </h2>
-        <span className="text-sm text-slate-500">
+        <span className="font-mono text-sm text-muted">
           {attachments.length} de {MAX_ATTACHMENTS_PER_RECORD}
         </span>
       </div>
 
       {attachments.length === 0 && (
-        <p className="mt-2 text-slate-600">Nenhum anexo ainda. Tire uma foto do serviço, da peça ou da nota fiscal.</p>
+        <p className="mt-2 text-ink-2">Nenhum anexo ainda. Tire uma foto do serviço, da peça ou da nota fiscal.</p>
       )}
 
       {photos.length > 0 && (
         <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {photos.map((photo) => (
-            <PhotoTile key={photo.id} vehicleId={vehicleId} recordId={recordId} photo={photo} onRemove={setRemoving} />
+            <PhotoTile
+              key={photo.id}
+              vehicleId={vehicleId}
+              recordId={recordId}
+              photo={photo}
+              isCover={photo.id === coverPhotoId}
+              onRemove={setRemoving}
+            />
           ))}
         </ul>
       )}
 
       {documents.length > 0 && (
-        <ul className="mt-3 divide-y divide-slate-100">
+        <ul className="mt-3 divide-y divide-track">
           {documents.map((file) => (
             <DocumentRow key={file.id} vehicleId={vehicleId} file={file} onRemove={setRemoving} />
           ))}
         </ul>
       )}
 
-      <UploadControls vehicleId={vehicleId} recordId={recordId} attached={attachments.length} />
+      {user?.isDemo ? (
+        <p className="mt-5 border-t border-line pt-4 text-sm text-muted">Na demonstração não dá para enviar arquivos.</p>
+      ) : (
+        <UploadControls vehicleId={vehicleId} recordId={recordId} attached={attachments.length} />
+      )}
 
       {removing && (
         <RemoveDialog vehicleId={vehicleId} recordId={recordId} attachment={removing} onClose={() => setRemoving(null)} />
@@ -87,7 +106,7 @@ function TrashIcon() {
 
 function FileIcon() {
   return (
-    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600" aria-hidden="true">
+    <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-track text-ink-2" aria-hidden="true">
       <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
         <path d="M14 3v5h5M9 13h6M9 17h6" />
@@ -97,34 +116,36 @@ function FileIcon() {
 }
 
 const removeButton =
-  'flex size-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600'
+  'flex size-11 shrink-0 items-center justify-center rounded-control text-muted hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger'
 
 type TileProps = {
   vehicleId: string
   recordId: string
   photo: Attachment
+  isCover: boolean
   onRemove: (attachment: Attachment) => void
 }
 
-function PhotoTile({ vehicleId, recordId, photo, onRemove }: TileProps) {
+function PhotoTile({ vehicleId, recordId, photo, isCover, onRemove }: TileProps) {
   const visibility = useSetAttachmentVisibility(vehicleId, recordId)
+  const cover = useSetCoverPhoto(vehicleId)
   const url = attachmentContentUrl(vehicleId, photo.id)
   // Enquanto a API responde, a chave já mostra o valor pedido (senão ela volta ao antigo e pula para o novo).
   const isPublic = visibility.isPending ? visibility.variables.isPublic : photo.isPublic
 
   return (
-    <li className="overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
+    <li className="overflow-hidden rounded-control bg-surface ring-1 ring-line">
       <a href={url} target="_blank" rel="noopener noreferrer" aria-label={`Abrir a foto ${photo.fileName}`} className="block">
         <img
           src={url}
           alt={`Foto: ${photo.fileName}`}
           loading="lazy"
           decoding="async"
-          className="aspect-square w-full bg-slate-100 object-cover"
+          className="aspect-square w-full bg-track object-cover"
         />
       </a>
       <div className="flex items-center justify-between gap-1 px-2">
-        <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-2 text-sm text-slate-700">
+        <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-2 text-sm text-ink-2">
           <input
             type="checkbox"
             role="switch"
@@ -135,7 +156,7 @@ function PhotoTile({ vehicleId, recordId, photo, onRemove }: TileProps) {
           />
           <span
             aria-hidden="true"
-            className="relative h-6 w-10 shrink-0 rounded-full bg-slate-300 transition-colors after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-emerald-600 peer-checked:after:translate-x-4 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-amber-500 peer-disabled:opacity-60"
+            className="relative h-6 w-10 shrink-0 rounded-full bg-line-strong transition-colors after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-ok peer-checked:after:translate-x-4 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-amber-ink peer-disabled:opacity-60"
           />
           No link público
         </label>
@@ -143,9 +164,33 @@ function PhotoTile({ vehicleId, recordId, photo, onRemove }: TileProps) {
           <TrashIcon />
         </button>
       </div>
-      {visibility.error && (
-        <p role="alert" className="px-2 pb-2 text-sm text-red-700">
-          {errorMessage(visibility.error)}
+      <div className="flex min-h-11 items-center justify-between gap-2 border-t border-track px-2">
+        {isCover ? (
+          <>
+            <span className="text-xs font-bold text-amber-ink">Capa do veículo</span>
+            <button
+              type="button"
+              disabled={cover.isPending}
+              onClick={() => cover.mutate(null)}
+              className="min-h-11 text-sm font-semibold text-ink-2 underline-offset-2 hover:text-ink hover:underline disabled:opacity-60"
+            >
+              Remover capa
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            disabled={cover.isPending}
+            onClick={() => cover.mutate(photo.id)}
+            className="min-h-11 text-sm font-semibold text-ink-2 underline-offset-2 hover:text-ink hover:underline disabled:opacity-60"
+          >
+            Usar como capa
+          </button>
+        )}
+      </div>
+      {(visibility.error || cover.error) && (
+        <p role="alert" className="px-2 pb-2 text-sm text-danger">
+          {errorMessage(visibility.error ?? cover.error)}
         </p>
       )}
     </li>
@@ -171,11 +216,11 @@ function DocumentRow({
           href={attachmentContentUrl(vehicleId, file.id)}
           target="_blank"
           rel="noopener noreferrer"
-          className="block truncate font-medium text-slate-900 underline-offset-2 hover:underline"
+          className="block truncate font-semibold text-ink underline-offset-2 hover:underline"
         >
           {file.fileName}
         </a>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           {kindLabel} · {formatFileSize(toNumber(file.sizeBytes) ?? 0)} · só para você
         </p>
       </div>
@@ -211,7 +256,7 @@ function RemoveDialog({
   return (
     <Modal title="Excluir este anexo?" onClose={onClose}>
       <div className="mt-3 space-y-4">
-        <p className="break-words text-slate-700">
+        <p className="break-words text-ink-2">
           <strong>{attachment.fileName}</strong> será apagado de vez. Não dá para desfazer.
         </p>
         {remove.error && <Alert variant="error">{errorMessage(remove.error)}</Alert>}
@@ -248,9 +293,9 @@ function UploadControls({ vehicleId, recordId, attached }: { vehicleId: string; 
   }
 
   return (
-    <div className="mt-5 space-y-3 border-t border-slate-200 pt-4">
+    <div className="mt-5 space-y-3 border-t border-line pt-4">
       <fieldset>
-        <legend className="text-sm font-medium text-slate-700">O que você vai enviar?</legend>
+        <legend className="text-sm font-semibold text-ink">O que você vai enviar?</legend>
         <div className="mt-1 grid grid-cols-2 gap-2">
           <OptionPill label="Foto">
             <input type="radio" name="attachment-kind" className="sr-only" checked={kind === 'photo'} onChange={() => setKind('photo')} />
@@ -259,7 +304,7 @@ function UploadControls({ vehicleId, recordId, attached }: { vehicleId: string; 
             <input type="radio" name="attachment-kind" className="sr-only" checked={kind === 'document'} onChange={() => setKind('document')} />
           </OptionPill>
         </div>
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-2 text-sm text-muted">
           {kind === 'photo'
             ? 'Fotos entram no link público de compartilhamento; dá para ocultar cada uma depois.'
             : 'Nota fiscal, PDF e comprovantes nunca aparecem no link público.'}
@@ -294,17 +339,17 @@ function UploadControls({ vehicleId, recordId, attached }: { vehicleId: string; 
         className="sr-only"
         onChange={handlePick}
       />
-      <p className="text-sm text-slate-500">JPG, PNG, WebP ou PDF, até 10 MB cada.</p>
+      <p className="text-sm text-muted">JPG, PNG, WebP ou PDF, até 10 MB cada.</p>
       {full && <Alert variant="warning">Este registro já tem {MAX_ATTACHMENTS_PER_RECORD} anexos, o máximo. Exclua algum para enviar outro.</Alert>}
 
       {progress && (
-        <div role="status" className="space-y-2 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200">
-          <p className="break-words text-sm text-slate-700">
+        <div role="status" className="space-y-2 rounded-control bg-ground p-3 ring-1 ring-line">
+          <p className="break-words text-sm text-ink-2">
             Enviando {progress.current} de {progress.total}: <span className="font-medium">{progress.fileName}</span>
           </p>
-          <div className="h-2 overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
+          <div className="h-2 overflow-hidden rounded-full bg-track" aria-hidden="true">
             <div
-              className="h-full animate-pulse rounded-full bg-amber-500 transition-[width]"
+              className="h-full animate-pulse rounded-full bg-amber transition-[width]"
               style={{ width: `${Math.max(8, ((progress.current - 1) / progress.total) * 100)}%` }}
             />
           </div>

@@ -13,9 +13,9 @@ export function Register() {
     <Card>
       <h1 className="text-xl font-semibold">Criar conta</h1>
       <CredentialsForm submitLabel="Criar conta" passwordAutoComplete="new-password" onSubmit={register} />
-      <p className="mt-4 text-center text-sm text-slate-600">
+      <p className="mt-4 text-center text-sm text-ink-2">
         Já tem conta?{' '}
-        <Link to="/login" className="font-medium text-slate-900 underline">
+        <Link to="/login" className="font-medium text-ink underline">
           Entrar
         </Link>
       </p>

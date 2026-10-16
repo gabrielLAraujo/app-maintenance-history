@@ -36,7 +36,7 @@ import { VehicleLoadError } from './vehicle/VehicleLoadError'
 
 function Loading() {
   return (
-    <p className="flex items-center gap-2 py-8 text-slate-600">
+    <p className="flex items-center gap-2 py-8 text-ink-2">
       <Spinner size="sm" label={null} /> Carregando…
     </p>
   )
@@ -188,7 +188,7 @@ function RecordFormBody({ mode, vehicleId, currentKm, initial, submitLabel, canc
           <h2 className="text-base font-semibold">O que foi feito</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <fieldset className="sm:col-span-2">
-              <legend className="mb-1 text-sm font-medium text-slate-700">Tipo</legend>
+              <legend className="mb-1 text-sm font-medium text-ink-2">Tipo</legend>
               <div className="grid grid-cols-2 gap-2">
                 {recordTypes.map((value) => (
                   <OptionPill key={value} label={recordTypeLabels[value]}>
@@ -228,7 +228,7 @@ function RecordFormBody({ mode, vehicleId, currentKm, initial, submitLabel, canc
                 <button
                   type="button"
                   onClick={() => setValue('odometer', String(currentKm), { shouldDirty: true, shouldValidate: true })}
-                  className="mt-1 min-h-11 text-sm font-medium text-slate-700 underline hover:text-slate-900"
+                  className="mt-1 min-h-11 text-sm font-medium text-ink-2 underline hover:text-ink"
                 >
                   Usar a km atual ({formatKm(currentKm)})
                 </button>
@@ -286,7 +286,7 @@ function RecordFormBody({ mode, vehicleId, currentKm, initial, submitLabel, canc
           />
         )}
 
-        <div className="sticky bottom-0 z-10 -mx-4 flex gap-3 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+        <div className="sticky bottom-0 z-10 -mx-4 flex gap-3 border-t border-line bg-white/95 px-4 py-3 backdrop-blur">
           <ButtonLink to={cancelTo} variant="secondary">
             Cancelar
           </ButtonLink>
@@ -307,8 +307,8 @@ function CostTotal() {
   const total = estimateTotal(laborCost, parts)
 
   return (
-    <p className="flex items-center justify-between gap-3 border-t border-slate-200 pt-3">
-      <span className="font-medium text-slate-700">Total do registro</span>
+    <p className="flex items-center justify-between gap-3 border-t border-line pt-3">
+      <span className="font-medium text-ink-2">Total do registro</span>
       <Money value={total} className="text-xl font-bold" />
     </p>
   )
@@ -343,21 +343,21 @@ function FulfillReminders({ vehicleId, selected, onToggle }: FulfillProps) {
     <Card>
       <fieldset>
         <legend className="text-base font-semibold">Este registro cumpre lembretes?</legend>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-ink-2">
           Os marcados voltam a contar a partir da data e da km deste registro. Lembretes por km pedem a km preenchida.
         </p>
-        <ul className="mt-3 divide-y divide-slate-100">
+        <ul className="mt-3 divide-y divide-track">
           {reminders.data.map((reminder) => (
             <li key={reminder.id}>
               <label className="flex min-h-12 cursor-pointer items-center gap-3 py-2">
                 <input
                   type="checkbox"
-                  className="size-5 shrink-0 accent-amber-500"
+                  className="size-5 shrink-0 accent-amber"
                   checked={selected.includes(reminder.id)}
                   onChange={(event) => onToggle(reminder.id, event.target.checked)}
                 />
                 <span className="min-w-0 flex-1">{reminder.title}</span>
-                <span className="shrink-0 text-xs font-semibold text-slate-500">{reminderStateLabels[reminder.status.state]}</span>
+                <span className="shrink-0 text-xs font-semibold text-muted">{reminderStateLabels[reminder.status.state]}</span>
               </label>
             </li>
           ))}

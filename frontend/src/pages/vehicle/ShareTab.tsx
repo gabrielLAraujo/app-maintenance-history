@@ -22,7 +22,7 @@ const nameOf = (link: ShareLink) => link.label?.trim() || 'Link sem nome'
 /** O endereço que se manda a alguém: origem do app + caminho (`/p/{token}`) que a API devolve. */
 const absoluteUrl = (link: ShareLink) => `${window.location.origin}${link.path}`
 
-const chip = 'inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700'
+const chip = 'inline-flex items-center rounded-full bg-track px-2.5 py-0.5 text-xs font-medium text-ink-2'
 
 /** Aba Compartilhar: links públicos do veículo (criar, copiar, abrir, revogar) com o status de cada um. */
 export function ShareTab({ vehicleId }: { vehicleId: string }) {
@@ -33,7 +33,7 @@ export function ShareTab({ vehicleId }: { vehicleId: string }) {
 
   if (links.isPending) {
     return (
-      <p className="flex items-center gap-2 py-8 text-slate-600">
+      <p className="flex items-center gap-2 py-8 text-ink-2">
         <Spinner size="sm" label={null} /> Carregando links…
       </p>
     )
@@ -65,7 +65,7 @@ export function ShareTab({ vehicleId }: { vehicleId: string }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-slate-600">
+      <p className="text-ink-2">
         Quem recebe o link vê, sem entrar no app, o veículo, a km e o histórico com as peças e as fotos marcadas como
         &ldquo;No link público&rdquo;. Documentos, notas fiscais, chassi, observações e lembretes nunca aparecem.
       </p>
@@ -123,12 +123,12 @@ function LinkRow({ link, onRevoke }: { link: ShareLink; onRevoke: () => void }) 
   }
 
   return (
-    <li className={`rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 ${link.isActive ? '' : 'opacity-80'}`}>
+    <li className={`rounded-card border border-line bg-surface p-4 ${link.isActive ? '' : 'opacity-80'}`}>
       <div className="flex items-start justify-between gap-3">
         <h3 className="min-w-0 font-semibold leading-snug break-words">{name}</h3>
         <StatusBadge link={link} />
       </div>
-      <p className="mt-1 text-sm text-slate-500">Criado em {formatInstantDate(link.createdAt)}</p>
+      <p className="mt-1 text-sm text-muted">Criado em {formatInstantDate(link.createdAt)}</p>
 
       <div className="mt-2 flex flex-wrap gap-2">
         <span className={chip}>{link.includeCosts ? 'Com custos' : 'Sem custos'}</span>
@@ -138,7 +138,7 @@ function LinkRow({ link, onRevoke }: { link: ShareLink; onRevoke: () => void }) 
 
       {link.isActive && (
         <>
-          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs break-all text-slate-600">{url}</p>
+          <p className="mt-3 rounded-lg bg-ground px-3 py-2 font-mono text-xs break-all text-ink-2">{url}</p>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
             <Button
               className="col-span-2 sm:col-span-1"
@@ -172,7 +172,7 @@ function LinkRow({ link, onRevoke }: { link: ShareLink; onRevoke: () => void }) 
                 aria-label={`Endereço do link ${name}`}
                 value={url}
                 onFocus={(event) => event.currentTarget.select()}
-                className="block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 font-mono text-sm text-slate-900 focus:outline-2 focus:outline-offset-0 focus:outline-amber-500"
+                className="block min-h-11 w-full rounded-lg border border-line-strong bg-white px-3 font-mono text-sm text-ink focus:outline-2 focus:outline-offset-0 focus:outline-amber-ink"
               />
             </div>
           )}
@@ -184,10 +184,10 @@ function LinkRow({ link, onRevoke }: { link: ShareLink; onRevoke: () => void }) 
 
 function StatusBadge({ link }: { link: ShareLink }) {
   const [label, look] = link.isActive
-    ? (['Ativo', 'bg-emerald-100 text-emerald-800'] as const)
+    ? (['Ativo', 'bg-ok-soft text-ok'] as const)
     : link.revokedAt
-      ? (['Revogado', 'bg-red-100 text-red-800'] as const)
-      : (['Expirado', 'bg-slate-200 text-slate-700'] as const)
+      ? (['Revogado', 'bg-danger-soft text-danger'] as const)
+      : (['Expirado', 'bg-line text-ink-2'] as const)
 
   return <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${look}`}>{label}</span>
 }
@@ -214,7 +214,7 @@ function RevokeDialog({ vehicleId, link, onClose }: { vehicleId: string; link: S
   return (
     <Modal title="Revogar este link?" onClose={onClose}>
       <div className="mt-3 space-y-4">
-        <p className="break-words text-slate-700">
+        <p className="break-words text-ink-2">
           <strong>{nameOf(link)}</strong> deixa de abrir na hora para quem o recebeu. Não dá para desfazer: para voltar a
           compartilhar, crie um link novo.
         </p>

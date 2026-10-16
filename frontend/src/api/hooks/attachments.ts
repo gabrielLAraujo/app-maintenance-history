@@ -5,6 +5,7 @@ import { problemMessage } from '../problem'
 import type { components } from '../schema'
 import { problemOf, unwrap, unwrapEmpty } from '../unwrap'
 import { recordKeys } from './records'
+import { invalidateVehicle } from './vehicles'
 
 type AttachmentKind = components['schemas']['AttachmentKind']
 
@@ -70,13 +71,15 @@ export function useSetAttachmentVisibility(vehicleId: string, recordId: string) 
 
 export function useDeleteAttachment(vehicleId: string, recordId: string) {
   const refresh = useRefreshRecord(vehicleId, recordId)
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (attachmentId: string) =>
       unwrapEmpty(
         api.DELETE('/api/vehicles/{vehicleId}/attachments/{attachmentId}', { params: { path: { vehicleId, attachmentId } } }),
       ),
-    onSuccess: refresh,
+    // Apagar a foto que era a capa limpa a capa do veículo (no banco): o veículo e os cards buscam de novo.
+    onSuccess: () => Promise.all([refresh(), invalidateVehicle(queryClient, vehicleId)]),
   })
 }
 

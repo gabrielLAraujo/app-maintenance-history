@@ -10,7 +10,7 @@ export function VehicleLoadError({ error, onRetry }: { error: unknown; onRetry: 
     return (
       <Card className="text-center">
         <h1 className="text-xl font-semibold">Veículo não encontrado</h1>
-        <p className="mt-2 text-slate-600">Ele pode ter sido excluído, ou o endereço está errado.</p>
+        <p className="mt-2 text-ink-2">Ele pode ter sido excluído, ou o endereço está errado.</p>
         <ButtonLink to="/" className="mt-4">
           Voltar ao painel
         </ButtonLink>

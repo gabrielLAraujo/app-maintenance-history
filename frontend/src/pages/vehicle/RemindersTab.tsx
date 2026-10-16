@@ -19,9 +19,9 @@ type Reminder = Schemas['ReminderDto']
 const severity = { overdue: 0, dueSoon: 1, ok: 2 } satisfies Record<Schemas['ReminderState'], number>
 
 const look = {
-  overdue: { bar: 'bg-red-500', badge: 'bg-red-100 text-red-800' },
-  dueSoon: { bar: 'bg-amber-500', badge: 'bg-amber-100 text-amber-900' },
-  ok: { bar: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-800' },
+  overdue: { bar: 'bg-danger', badge: 'bg-danger-soft text-danger' },
+  dueSoon: { bar: 'bg-amber', badge: 'bg-amber-soft text-amber-ink' },
+  ok: { bar: 'bg-ok', badge: 'bg-ok-soft text-ok' },
 } satisfies Record<Schemas['ReminderState'], { bar: string; badge: string }>
 
 type Props = {
@@ -44,7 +44,7 @@ export function RemindersTab({ vehicleId, currentKm, odometerUpdatedAt, onUpdate
 
   if (reminders.isPending) {
     return (
-      <p className="flex items-center gap-2 py-8 text-slate-600">
+      <p className="flex items-center gap-2 py-8 text-ink-2">
         <Spinner size="sm" label={null} /> Carregando lembretes…
       </p>
     )
@@ -117,7 +117,7 @@ function ReminderRow({ reminder, onEdit, onRemove }: { reminder: Reminder; onEdi
   const lastDone = `Última vez: ${formatDate(reminder.lastDoneDate)}${lastKm === null ? '' : ` · ${formatKm(lastKm)}`}`
 
   return (
-    <li data-state={state} className="flex gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+    <li data-state={state} className="flex gap-3 rounded-card border border-line bg-surface p-4">
       <span aria-hidden="true" className={`w-1.5 shrink-0 self-stretch rounded-full ${look[state].bar}`} />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
@@ -126,17 +126,17 @@ function ReminderRow({ reminder, onEdit, onRemove }: { reminder: Reminder; onEdi
             {reminderStateLabels[state]}
           </span>
         </div>
-        <p className="mt-1 text-sm text-slate-600">{intervalSummary(reminder)}</p>
+        <p className="mt-1 text-sm text-ink-2">{intervalSummary(reminder)}</p>
 
         <dl className="mt-3 space-y-1">
           {statusLines(reminder.status).map((line) => (
             <div key={line.axis} className="flex items-baseline justify-between gap-3 text-sm">
-              <dt className="text-slate-500">{line.label}</dt>
-              <dd className={`text-right font-medium tabular-nums ${line.late ? 'text-red-700' : 'text-slate-900'}`}>{line.text}</dd>
+              <dt className="text-muted">{line.label}</dt>
+              <dd className={`text-right font-medium tabular-nums ${line.late ? 'text-danger' : 'text-ink'}`}>{line.text}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-2 text-sm text-slate-500">{lastDone}</p>
+        <p className="mt-2 text-sm text-muted">{lastDone}</p>
 
         <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
           <Button variant="secondary" aria-label={`Editar ${reminder.title}`} onClick={onEdit}>
@@ -166,7 +166,7 @@ function DeleteDialog({ vehicleId, reminder, onClose }: { vehicleId: string; rem
   return (
     <Modal title="Excluir este lembrete?" onClose={onClose}>
       <div className="mt-3 space-y-4">
-        <p className="break-words text-slate-700">
+        <p className="break-words text-ink-2">
           <strong>{reminder.title}</strong> será apagado de vez. Os registros do histórico não mudam.
         </p>
         {remove.error && <Alert variant="error">{errorMessage(remove.error)}</Alert>}

@@ -127,3 +127,19 @@ export function useCorrectOdometer() {
     onError: (error, { id }) => reloadOnConflict(queryClient, id, error),
   })
 }
+
+/**
+ * Define (ou, com `null`, remove) a capa do veículo: uma foto de um registro dele. A capa aparece no veículo, nos
+ * cards da lista e do painel.
+ */
+export function useSetCoverPhoto(vehicleId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (attachmentId: string | null) =>
+      unwrapEmpty(
+        api.PUT('/api/vehicles/{vehicleId}/cover-photo', { params: { path: { vehicleId } }, body: { attachmentId } }),
+      ),
+    onSuccess: () => invalidateVehicle(queryClient, vehicleId),
+  })
+}

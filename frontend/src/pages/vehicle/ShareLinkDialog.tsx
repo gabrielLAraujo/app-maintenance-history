@@ -41,10 +41,10 @@ const toFormProblem = (problem: Problem): Problem =>
 function CheckOption({ title, description, ...input }: ComponentProps<'input'> & { title: string; description: string }) {
   return (
     <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1">
-      <input type="checkbox" className="mt-1 size-5 shrink-0 accent-amber-500" {...input} />
+      <input type="checkbox" className="mt-1 size-5 shrink-0 accent-amber" {...input} />
       <span>
-        <span className="block font-medium text-slate-900">{title}</span>
-        <span className="block text-sm text-slate-500">{description}</span>
+        <span className="block font-medium text-ink">{title}</span>
+        <span className="block text-sm text-muted">{description}</span>
       </span>
     </label>
   )
@@ -101,7 +101,7 @@ export function ShareLinkDialog({ vehicleId, onClose, onCreated }: Props) {
         />
 
         <fieldset className="space-y-1">
-          <legend className="text-sm font-medium text-slate-700">O que mostrar além do histórico</legend>
+          <legend className="text-sm font-medium text-ink-2">O que mostrar além do histórico</legend>
           <CheckOption
             title="Mostrar custos"
             description="Preço das peças, mão de obra e total de cada registro."

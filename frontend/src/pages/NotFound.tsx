@@ -6,8 +6,8 @@ export function NotFound() {
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-4 py-8">
       <Card className="text-center">
         <h1 className="text-xl font-semibold">Página não encontrada</h1>
-        <p className="mt-2 text-slate-600">O endereço não existe ou foi movido.</p>
-        <Link to="/" className="mt-4 inline-block font-medium text-slate-900 underline">
+        <p className="mt-2 text-ink-2">O endereço não existe ou foi movido.</p>
+        <Link to="/" className="mt-4 inline-block font-medium text-ink underline">
           Voltar ao início
         </Link>
       </Card>
