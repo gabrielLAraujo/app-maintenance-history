@@ -103,6 +103,23 @@ public sealed class DemoCleanupTests(GarageApiFactory factory)
         Assert.False(await UserExistsAsync(restarted, userId));
     }
 
+    [Fact]
+    public async Task Deleting_a_demo_account_also_removes_its_files()
+    {
+        // O caminho de quando a semeadura falha depois de copiar as fotos: a conta sai e os arquivos também.
+        using var host = factory.WithClock(_clock);
+        var (demo, userId) = await StartDemoAsync(host);
+        var vehicleIds = (await demo.GetFromJsonAsync<JsonElement>("/api/vehicles", TestJson.Options))
+            .EnumerateArray().Select(vehicle => vehicle.GetProperty("id").GetGuid()).ToList();
+        Assert.All(vehicleIds, id => Assert.NotEmpty(FilesOf(id)));
+
+        await using (var scope = host.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<DemoAccountService>().DeleteAsync(userId, CancellationToken.None);
+
+        Assert.False(await UserExistsAsync(host, userId));
+        Assert.All(vehicleIds, id => Assert.Empty(FilesOf(id)));
+    }
+
     private static async Task<DemoPurgeResult> PurgeAsync(WebApplicationFactory<Program> host)
     {
         await using var scope = host.Services.CreateAsyncScope();

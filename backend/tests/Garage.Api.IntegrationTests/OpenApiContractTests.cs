@@ -65,6 +65,20 @@ public sealed class OpenApiContractTests(GarageApiFactory factory) : IDisposable
     }
 
     [Fact]
+    public async Task Every_endpoint_with_a_body_declares_400()
+    {
+        // Corpo inválido (JSON quebrado, campo com tipo errado) ou antiforgery ausente dão 400 em qualquer rota com corpo.
+        using var document = await LoadDocumentAsync(factory.CreateClient());
+        var failures = Operations(document.RootElement)
+            .Where(entry => entry.Operation.TryGetProperty("requestBody", out _))
+            .Where(entry => !entry.Operation.GetProperty("responses").TryGetProperty("400", out _))
+            .Select(entry => $"{entry.Method} {entry.Path}: tem corpo e não declara 400.")
+            .ToList();
+
+        AssertNoFailures(failures);
+    }
+
+    [Fact]
     public async Task Every_endpoint_has_a_unique_operation_id_and_a_tag()
     {
         using var document = await LoadDocumentAsync(factory.CreateClient());
