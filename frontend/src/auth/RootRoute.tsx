@@ -1,4 +1,4 @@
-import { AppShell } from '../components/AppShell'
+import { AppShell } from '../lazyPages'
 import { Landing } from '../pages/Landing'
 import { useAuth } from './AuthProvider'
 import { PageLoading } from './RouteGuards'

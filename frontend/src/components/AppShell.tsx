@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react'
+import { Suspense, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useDueReminders } from '../api/hooks/reminders'
 import { useAuth } from '../auth/AuthProvider'
+import { SectionLoading } from '../auth/RouteGuards'
 import { DemoBanner } from './DemoBanner'
 import { Logo } from './Logo'
 import { Spinner } from './Spinner'
@@ -159,7 +160,9 @@ export function AppShell() {
       <div className="min-w-0 flex-1">
         <main className="mx-auto max-w-[1120px] px-4 py-6 sm:px-6 lg:px-10 lg:py-7">
           {user?.isDemo && user.demoExpiresAt && <DemoBanner expiresAt={user.demoExpiresAt} />}
-          <Outlet />
+          <Suspense fallback={<SectionLoading />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

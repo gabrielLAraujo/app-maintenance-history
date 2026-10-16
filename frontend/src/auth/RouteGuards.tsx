@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Link, Navigate, Outlet, useLocation } from 'react-router'
 import { Logo } from '../components/Logo'
 import { Spinner } from '../components/Spinner'
@@ -10,7 +11,10 @@ import { AuthProvider, useAuth } from './AuthProvider'
 export function AuthRoot() {
   return (
     <AuthProvider>
-      <Outlet />
+      {/* As telas do app carregam sob demanda (lazyPages): enquanto o código chega, o mesmo spinner da sessão. */}
+      <Suspense fallback={<PageLoading />}>
+        <Outlet />
+      </Suspense>
     </AuthProvider>
   )
 }
@@ -19,6 +23,15 @@ export function AuthRoot() {
 export function PageLoading() {
   return (
     <div className="grid min-h-dvh place-items-center text-muted">
+      <Spinner />
+    </div>
+  )
+}
+
+/** Spinner dentro de uma moldura que já está na tela (menu do app, logo do login), enquanto a tela carrega. */
+export function SectionLoading() {
+  return (
+    <div className="grid place-items-center py-16 text-muted">
       <Spinner />
     </div>
   )
@@ -54,7 +67,9 @@ export function GuestOnly() {
       <Link to="/" aria-label="Garagem, início" className="self-center rounded-control">
         <Logo />
       </Link>
-      <Outlet />
+      <Suspense fallback={<SectionLoading />}>
+        <Outlet />
+      </Suspense>
     </main>
   )
 }

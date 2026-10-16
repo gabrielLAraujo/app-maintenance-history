@@ -1,19 +1,21 @@
 import type { RouteObject } from 'react-router'
 import { RootRoute } from './auth/RootRoute'
 import { AuthRoot, GuestOnly, RequireAuth } from './auth/RouteGuards'
-import { AppShell } from './components/AppShell'
-import { Dashboard } from './pages/Dashboard'
-import { Login } from './pages/Login'
+import {
+  AppShell,
+  Dashboard,
+  Login,
+  RecordDetail,
+  RecordForm,
+  Register,
+  Reminders,
+  VehicleDetail,
+  VehicleEdit,
+  VehicleNew,
+  Vehicles,
+} from './lazyPages'
 import { NotFound } from './pages/NotFound'
 import { PublicVehicle } from './pages/PublicVehicle'
-import { RecordDetail } from './pages/RecordDetail'
-import { RecordForm } from './pages/RecordForm'
-import { Reminders } from './pages/Reminders'
-import { Register } from './pages/Register'
-import { VehicleDetail } from './pages/VehicleDetail'
-import { VehicleEdit } from './pages/VehicleEdit'
-import { VehicleNew } from './pages/VehicleNew'
-import { Vehicles } from './pages/Vehicles'
 
 /**
  * Mapa de rotas do app. As telas logadas são filhas do AppShell (menu lateral e faixa da demo).
@@ -21,6 +23,7 @@ import { Vehicles } from './pages/Vehicles'
  *  - /: a landing para visitantes e o painel (no AppShell) para quem tem sessão;
  *  - /login e /register: só para visitantes (/register só abre se `registrationEnabled`);
  *  - o resto exige login e usa o AppShell; sem sessão, o RequireAuth leva ao /login.
+ * Só a landing, a página pública e o 404 vêm no arquivo principal; as outras telas carregam sob demanda (lazyPages).
  */
 export const routes: RouteObject[] = [
   { path: '/p/:token', element: <PublicVehicle /> },
