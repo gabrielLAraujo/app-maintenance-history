@@ -14,7 +14,7 @@ const ARCHITECTURE = `${REPOSITORY}/blob/main/docs/ARQUITETURA.md`
 const PHOTO_CREDITS = `${REPOSITORY}/blob/main/backend/src/Garage.Infrastructure/Demo/Assets/CREDITS.md`
 
 /** Testes automatizados do repositório (back e front) na data da entrega desta tela. */
-const TEST_COUNT = '862'
+const TEST_COUNT = '872'
 
 function demoProblemMessage(problem: Problem): string {
   if (problem.status === 429) return 'Muitas demonstrações criadas a partir deste endereço. Tente de novo em alguns minutos.'

@@ -157,7 +157,8 @@ Vêm do `appsettings*.json`, dos user-secrets (desenvolvimento) ou de variáveis
 | `RateLimits:PublicPhotosPerMinute` | `600` | `GET /api/public/{token}/attachments/{id}` (as fotos da página pública), por IP |
 | `RateLimits:CatalogPerMinute` | `30` | `/api/catalog/*`, por usuário |
 | `RateLimits:UploadsPerMinute` | `30` | Upload de anexos, por usuário |
-| `RateLimits:DemoPerHour` | `5` | `POST /api/auth/demo`, por IP e por hora |
+| `RateLimits:DemoPerHour` | `5` | `POST /api/auth/demo`, por IP (IPv6 por rede /64) e por hora |
+| `RateLimits:DemoWritesPerHour` | `300` | Escritas (POST, PUT, PATCH, DELETE) de cada conta demo, por hora; `/api/auth` fica de fora |
 
 Só no contêiner: `MIGRATE_ON_START` (`true` por padrão; `false` pula as migrations do entrypoint).
 
